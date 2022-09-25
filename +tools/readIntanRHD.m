@@ -318,6 +318,8 @@ for signal_group = 1:number_of_signal_groups
     end
 end
 
+fprintf('\n'); % terminate printInfo ... 
+
 % Summarize contents of data file.
 num_amplifier_channels = amplifier_index - 1;
 num_aux_input_channels = aux_input_index - 1;
@@ -539,6 +541,7 @@ for arg=1:2:length(output)
         amplifier_channels = amplifier_channels(1,output{arg+1});
         amplifier_data = amplifier_data(output{arg+1},:);
         ts_amp = timeseries;
+        ts_amp.name = 'ampch';
         ts_amp.time = t_amplifier;
         ts_amp.data = amplifier_data';
         if opts.range ~=0
@@ -548,7 +551,7 @@ for arg=1:2:length(output)
         ts_amp.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_amp;
         varargout{arg+1} = amplifier_channels;
-      else
+      elseif opts.nrstreamsrequested > 0
         disp('WARNING: No amplifier channels found in file!')
       end
     case 'auxch'
@@ -556,6 +559,7 @@ for arg=1:2:length(output)
         aux_input_channels = aux_input_channels(1,output{arg+1});
         aux_input_data = aux_input_data(output{arg+1},:);
         ts_aux = timeseries;
+        ts_aux.name = 'auxch';
         ts_aux.time = t_aux_input;
         ts_aux.data = aux_input_data';
         if opts.range~=0
@@ -565,7 +569,7 @@ for arg=1:2:length(output)
         ts_aux.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_aux;
         varargout{arg+1} = aux_input_channels;
-      else
+      elseif opts.nrstreamsrequested > 0
         disp('WARNING: No auxiliary inputs found in file!')
       end
     case 'ADCch'
@@ -573,6 +577,7 @@ for arg=1:2:length(output)
         board_adc_channels = board_adc_channels(1,output{arg+1});
         board_adc_data = board_adc_data(output{arg+1},:);
         ts_board_adc = timeseries;
+        ts_board_adc.name = 'ADCch';
         ts_board_adc.time = t_board_adc;
         ts_board_adc.data = board_adc_data';
         if opts.range ~=0
@@ -582,7 +587,7 @@ for arg=1:2:length(output)
         ts_board_adc.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_board_adc;
         varargout{arg+1} = board_adc_channels;
-      else
+      elseif opts.nrstreamsrequested > 0
         disp('WARNING: No board ADC channels found in file!');
       end
     case 'DIGin'
@@ -590,6 +595,7 @@ for arg=1:2:length(output)
         board_dig_in_channels = board_dig_in_channels(1,output{arg+1});
         board_dig_in_data = board_dig_in_data(output{arg+1},:);
         ts_dig_in = timeseries;
+        ts_dig_in.name = 'DIGin';
         ts_dig_in.time = t_amplifier;
         ts_dig_in.data = board_dig_in_data';
         if opts.range ~=0
@@ -598,7 +604,7 @@ for arg=1:2:length(output)
         ts_dig_in.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_dig_in;
         varargout{arg+1} = board_dig_in_channels;
-      else
+      elseif opts.nrstreamsrequested > 0
         disp('WARNING: No board digital in channels found in file!');
       end
     case 'DIGout'
@@ -606,6 +612,7 @@ for arg=1:2:length(output)
         board_dig_out_channels = board_dig_out_channels(1,output{arg+1});
         board_dig_out_data = board_dig_out_data(output{arg+1},:);
         ts_dig_out = timeseries;
+        ts_dig_out.name = 'DIGout';
         ts_dig_out.time = t_amplifier;
         ts_dig_out.data = board_dig_out_data';
         if opts.range ~=0
@@ -614,12 +621,13 @@ for arg=1:2:length(output)
         ts_dig_out.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_dig_out;
         varargout{arg+1} = board_dig_out_channels;
-      else
+      elseif opts.nrstreamsrequested > 0
         disp('WARNING: No board digital out channels found in file!');
       end
     case 'volt'
       if size(supply_voltage_data,1)>0
         ts_volt = timeseries;
+        ts_volt.name = 'supply_voltage';
         ts_volt.time = t_supply_voltage;
         ts_volt.data = supply_voltage_data';
         if opts.range ~=0
@@ -628,12 +636,13 @@ for arg=1:2:length(output)
         ts_volt.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_volt;
         varargout{arg+1} = supply_voltage_channels;
-      else
+      elseif opts.nrstreamsrequested > 0
         disp('WARNING: No supply voltage data found in file!');
       end
     case 'tempch'
       if size(temp_sensor_data,1)>0
         ts_temp = timeseries;
+        ts_temp.name = 'temperature';
         ts_temp.time = t_temp_sensor;
         ts_temp.data = temp_sensor_data';
         if opts.range ~= 0

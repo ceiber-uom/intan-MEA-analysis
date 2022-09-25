@@ -1,4 +1,4 @@
-Copyright (c) 2013, Laurens Witter
+Copyright (c) 2013 Laurens Witter, 2022 Calvin Eiber
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

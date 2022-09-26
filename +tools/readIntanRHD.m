@@ -1,3 +1,11 @@
+
+
+
+
+
+
+
+
 function [output, frequency_parameters, notes, spike_triggers, ... 
           varargout] = readIntanRHD(filename, varargin)
 % Function to read intan .RHD files. Adapted from read_Intan_RHD2000_file.m
@@ -51,7 +59,7 @@ function [output, frequency_parameters, notes, spike_triggers, ...
 % This loads the three auxiliary streams, and channel 1 from the general
 % amplifier. No range is specified, so the whole stream is loaded.
 
-% #TODO - CE - convert the code to use my named/ 
+% #TODO - CE - convert the code to use my named/get_ syntax
 
 % First we parse the variable inputs to check whether the list makes sense:
 p = inputParser;
@@ -70,7 +78,13 @@ p.addParameter('tempch','temp',@(temp) ...
                         strcmpi(temp,'yes') || strcmpi(temp,'no'));
 
 p.parse(filename,varargin{:,:})
-    
+
+if ~exist(filename,'file')
+    [fn,fp] = uigetfile('*.rhd',[],filename);
+    if ~any(fn), error('Cancelled'), end
+    filename = [fp fn];
+end
+
 % Now we assign the values defined in the inputs to the respective
 % variables and set some defaults.
 opts.nrstreamsrequested = 0;
@@ -651,7 +665,7 @@ for arg=1:2:length(output)
         ts_temp.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_temp;
         varargout{arg+1} = '1';
-      else
+      elseif opts.nrstreamsrequested > 0
         disp('WARNING: No temperature data found in file!');
       end
   end

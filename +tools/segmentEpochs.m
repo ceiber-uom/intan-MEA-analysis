@@ -62,7 +62,7 @@ epochs.duration  = [];
 epochs.frequency = [];
 epochs.amplitude = [];
 epochs.phase     = []; 
-epochs.time_avg  = [];
+epochs.average  = [];
 epochs.units = struct; 
 
 dd = sort([opts.threshold_min opts.threshold_max]); 
@@ -136,15 +136,15 @@ for ii = 1:numel(epochs.start)
     epochs.frequency(ii,1) = est.w/2/pi;
     epochs.amplitude(ii,1) = sqrt( est.a1^2 + est.b1^2 );
     epochs.phase(ii,1)     = atan2( est.b1, est.a1 );
-    epochs.time_avg(ii,1)  = est.a0;
+    epochs.average(ii,1)  = est.a0;
     
     if false
       %%
       cla %#ok<UNRCH> 
       plot(t,y), hold on
-      plot(t, epochs.time_avg(ii) + epochs.amplitude(ii) * ...
-                     real(exp(2i*pi*epochs.frequency(ii)*t - ... 
-                                 1i*epochs.phase(ii))))
+      plot(t, epochs.average(ii) + epochs.amplitude(ii) * ...
+                    real(exp(2i*pi*epochs.frequency(ii)*t - ... 
+                                1i*epochs.phase(ii))))
     end
 
     %%
@@ -161,6 +161,20 @@ for ii = 1:numel(epochs.start)
 
 end
 
+epochs.units.start  = 'samples of ADC.Time';
+epochs.units.finish = 'samples of ADC.Time';
+epochs.units.frame_size = 'samples';
+epochs.units.duration = trig.TimeInfo.Units;
+epochs.units.frequency = 'Hz (if duration in s)';
+epochs.units.amplitude = [trig.Name ' ' trig.DataInfo.Units];
+epochs.units.phase = 'radians';
+epochs.units.average = [trig.Name ' ' trig.DataInfo.Units];
+
 %% 
-error todo_apply_epoch_segmentation
+
+if any(named('-d')), data = get_('-d'); end
+if ~exist('data','var'), return, end
+
+error todo_apply_epoch_segmentation_to_data
+
 

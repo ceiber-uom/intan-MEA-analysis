@@ -1,28 +1,40 @@
 
 
-function [epochs,opts] = segmentEpochs( data, varargin )
-% Docstring go here
+function [epochs,opts] = segmentEpochs( trig, varargin )
+% [epochs,opts] = segmentEpochs( trigger, [data], ... )
+% 
+% Options:
 % 
 % -opts [opts] : use specified options structure
 % -min 0.4 : lower trigger level for stimulus offset
 % -max 0.6 : upper trigger level for stimulus onset
+% -before [0.5] : what fraction of the inter-stimulus interval is
+%                 considered 'before' the next stimulus
+%                 (as opposed to 'after' the previous)
+% -jitter [0.01] : If variation in start times is greater than X, halt
+%                  (error may indicate bad min/max values)
+% -assess [0.90] : for determining input stimulus properties, use the
+%                  middle X % of the recorded data
+% 
+% V0.1 - 27 September 2022 - Calvin Eiber <c.eiber@ieee.org>
 % 
 
 named = @(n) strncmpi(varargin,n,length(n));
 get_ = @(v) varargin{find(named(v))+1};
 
 
-if isstruct( data )
-  if isfield(data,'trigger'), data = data.trigger; noun = '.trigger';
-  elseif isfield(data,'ADC'), data = data.ADC;     noun = '.ADC';
+if isstruct( trig )
+  data = trig; 
+  if isfield(trig,'trigger'), trig = trig.trigger; noun = '.trigger';
+  elseif isfield(trig,'ADC'), trig = trig.ADC;     noun = '.ADC';
   end
 else noun = ''; 
 end
 
-if isstruct( data )
-     assert( isfield(data,'Data') && isfield(data,'Time'), ...
+if isstruct( trig )
+     assert( isfield(trig,'Data') && isfield(trig,'Time'), ...
          'expected data%s as a timeseries object', noun)
-else assert( isa(data,'timeseries'), ...
+else assert( isa(trig,'timeseries'), ...
          'expected data%s as a timeseries object', noun)
 end
 
@@ -44,7 +56,7 @@ if any(named('-as')),  opts.assess_fraction = get_('-as'); end
 %%
 
 epochs.start     = [];
-epochs.end       = [];
+epochs.finish       = [];
 epochs.frame_size = [];
 epochs.duration  = [];
 epochs.frequency = [];
@@ -53,18 +65,17 @@ epochs.phase     = [];
 epochs.time_avg  = [];
 epochs.units = struct; 
 
-
 dd = sort([opts.threshold_min opts.threshold_max]); 
 
 %%
 stim_active = false; 
-for tt = 1:numel(data.Data)
+for tt = 1:numel(trig.Data)
   if stim_active
-    if data.Data(tt) > dd(1), continue, end
-    epochs.end(end+1,1) = tt;
+    if trig.Data(tt) > dd(1), continue, end
+    epochs.finish(end+1,1) = tt;
     stim_active = false;
   else
-    if data.Data(tt) < dd(2), continue, end
+    if trig.Data(tt) < dd(2), continue, end
     epochs.start(end+1,1) = tt;
     stim_active = true;
   end
@@ -73,13 +84,23 @@ end
 if stim_active
   warning('mea:epochs:cutoff', ...
           'Recording ended while a stimulus was active. Data may be cut off.')
-  epochs.end(end+1) = tt; 
+  epochs.finish(end+1) = tt; 
 end
-assert(numel(epochs.start) == numel(epochs.end), 'start/end number of edges mismatch')
+assert(numel(epochs.start) == numel(epochs.finish), 'start/end number of edges mismatch')
 
 delta_t = diff(epochs.start); 
 observed_jitter = std(delta_t) / mean(delta_t); 
 if observed_jitter > opts.allowable_jitter
+
+    clf
+    plot(trig), hold on
+    plot(xlim,[1 1]*dd(2),'--')
+    plot(xlim,[1 1]*dd(1),'--')
+    plot(trig.Time(epochs.start), ...
+         dd(2) * ones(size(epochs.start)),'k^','markerFacecolor','k')
+
+    plot(trig.Time(epochs.finish), ...
+         dd(1) * ones(size(epochs.finish)),'kv','markerFacecolor','k')
     error('The observed variation in start timestamps (%0.2f%%) %s (%0.1f%%). %s', ...
           100*observed_jitter, 'exceeds the allowable jitter', ...
           100*opts.allowable_jitter, 'If this is OK, please increase this parameter')
@@ -87,7 +108,7 @@ end
 
 %% Determine pre/post frame 
 
-n_sam_active = mean(epochs.end - epochs.start);
+n_sam_active = mean(epochs.finish - epochs.start);
 n_sam_gap = mean(diff(epochs.start)) - n_sam_active;
 n_sam_pre = floor(opts.before_fraction * n_sam_gap);
 n_sam_post = ceil((1-opts.before_fraction) * n_sam_gap);
@@ -98,8 +119,8 @@ epochs.frame_size = round([-n_sam_pre n_sam_active + n_sam_post]);
 
 for ii = 1:numel(epochs.start)
 
-    t = data.Time(epochs.start(ii):epochs.end(ii));
-    y = data.Data(epochs.start(ii):epochs.end(ii));
+    t = trig.Time(epochs.start(ii):epochs.finish(ii));
+    y = trig.Data(epochs.start(ii):epochs.finish(ii));
 
     t = t - t(1); 
     epochs.duration(ii,1) = t(end);
@@ -124,22 +145,22 @@ for ii = 1:numel(epochs.start)
       plot(t, epochs.time_avg(ii) + epochs.amplitude(ii) * ...
                      real(exp(2i*pi*epochs.frequency(ii)*t - ... 
                                  1i*epochs.phase(ii))))
-        
     end
+
     %%
     continue
     
     % I had a crack at trying to estimate the stimulus temporal frequency
-    % from the spectrum directly ... hard if the tf is not a clean integer
-    % multiple of the sample rate.
+    % from the spectrum directly ... invalid if the tf is not a clean
+    % integer multiple of the sample rate.
 
-    if isempty(fs), fs = 1./mean(diff(t)); end
-
+    if isempty(fs), fs = 1./mean(diff(t)); end %#ok<UNRCH> 
     yy = fft(y); yy(ceil(end/2):end) = []; 
     hz = fs*(0:numel(yy)-1)/numel(t);
    [pk_amp,pk_idx] = max(abs(yy(2:end)));
 
 end
 
-
+%% 
+error todo_apply_epoch_segmentation
 

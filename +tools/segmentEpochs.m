@@ -1,5 +1,4 @@
 
-
 function [epochs,opts] = segmentEpochs( data, varargin )
 % [epochs,opts] = segmentEpochs( [data], [trigger], ... )
 % 
@@ -212,7 +211,7 @@ data_fields = fieldnames(data);
 all_upper = @(s) all(ismember(s,['A':'Z' '_'])); 
 data_fields = data_fields(cellfun(all_upper,data_fields));
 
-for channel_type = data_fields
+for channel_type = reshape(data_fields, 1, [])
   %%
   source = data.(channel_type{1});
   is_ts = ~isstruct(source);

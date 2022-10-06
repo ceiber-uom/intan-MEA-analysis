@@ -102,7 +102,7 @@ cmd = find(strncmpi(cmd,{'hann','hamming'},3),1);
 if isempty(which('hann'))
     fprintf('using a %d-point hamming window\n',m)
     hamming_window = @(n) 0.54 - 0.46*cos(linspace(0,2*pi,n)); 
-    window = hamming_window(m+1)'; window(end) = []; 
+    window = hamming_window(m+1); window(end) = []; 
 elseif cmd == 2
     fprintf('using a %d-point hamming window\n',m)
     window = hamming(m,'periodic')';

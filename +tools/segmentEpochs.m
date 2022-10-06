@@ -22,7 +22,6 @@ function [epochs,opts] = segmentEpochs( trig, varargin )
 named = @(n) strncmpi(varargin,n,length(n));
 get_ = @(v) varargin{find(named(v))+1};
 
-
 if isstruct( trig )
   data = trig; 
   if isfield(trig,'trigger'), trig = trig.trigger; noun = '.trigger';

@@ -12,15 +12,15 @@ function output = readIntanRHD(filename, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % INPUTS:
 % filename : Filename (including path if necessary)
-% 'roi'   : Return a specified range of data (in sec)
-% 'amp'   : List the amplifier channnels to load
-% 'aux'   : List the auxilary channels to load
-% 'volt'  : Should the supply voltage channel should be loaded? (logical)
-% 'ADC'   : List the on-board ADC channels to load
-% 'DI'    : List the onboard digital input channels to load
-% 'DO'    : List the onboard digital output channels to load
-% 'temp'  : Should temperature data should be loaded? (logical)
-% 'notch' : Assign '50Hz' or '60Hz' to enable notch filtering. If left
+% 'roi' [t_start t_end] : Return a specified range of data (in sec)
+% 'amp'  [list] : Select amplifier channnels to load
+% 'aux'  [list] : Select auxilary channels to load
+% 'volt' [true] : Load the supply voltage channel?
+% 'ADC'  [list] : Select on-board ADC channels to load
+% 'DI'   [list] : Select onboard digital input channels to load
+% 'DO'   [list] : Select onboard digital output channels to load
+% 'temp' [true] : Should temperature data should be loaded? (logical)
+% 'notch' [50]: Assign '50Hz' or '60Hz' to enable notch filtering. If left
 %           undefined then no filter is applied. If the file was saved with
 %           notch filtering enabled (v3 or higher), it is not recomputed.
 %
@@ -64,7 +64,7 @@ end
 % variables and set some defaults.
 opts.n_streams_req = 0;
 opts.notchfreq = 0;
-opts.time_roi = 0;
+opts.time_roi = [];
 
 % opts.do_AMP_channels = 0;
 % opts.do_AUX_channels = 0;
@@ -81,13 +81,13 @@ end
 
 channel_types = {'amp','aux','volt','adc','DI','DO','temp'};
 
+do_ch_ = @(t) ['do_' upper(t{1}) '_channels'];
+
 for chan_type = channel_types
-
-  opt_id = ['do_' upper(chan_type{1}) '_channels'];
-  opts.(opt_id) = false; 
-
-  if any(named(chan_type{1})), opts.(opt_id) = get_('amp');  
-          opts.n_streams_req = opts.n_streams_req+1;
+  opts.(do_ch_(chan_type)) = false; 
+  if any(named(chan_type{1}))
+    opts.(do_ch_(chan_type)) = get_(chan_type{1});  
+    opts.n_streams_req = opts.n_streams_req+1;
   end
 end
     
@@ -220,6 +220,7 @@ new_channel = struct(channel_struct);
 channels = struct;
 chan_ = @(ty) [upper(ty{1}) '_channels'];
 sams_ = @(ty) [upper(ty{1}) '_samples'];
+time_ = @(ty) [upper(ty{1}) '_time'];
 
 for ty = channel_types
     channels.(chan_(ty)) = struct(channel_struct);
@@ -329,8 +330,6 @@ num.TEMP_samples = num_temp_sensor_channels;
 % record_time = num_amplifier_samples / sample_rate;
 
 % Pre-allocate memory for data.
-t_amplifier = zeros(1, num.AMP_samples);
-
 assert(data_present,'this file does not contain data to load!')
 
 data = struct; 
@@ -339,22 +338,29 @@ for ty = channel_types
     data.(sams_(ty)) = 1; 
 end
 
+data.AMP_time = zeros(1, num.AMP_samples);
+
 data.DI_raw = zeros(1,num.DI_channels);
 data.DO_raw = zeros(1,num.DO_channels);
 
 % Read sampled data from file.
 
+printInfo(); 
+
 for ii = 1:num_data_blocks
+
+    % Make console progress bar
+    console_progress_bar(ii / num_data_blocks);
+    
     % In version 1.2, we moved from saving timestamps as unsigned
     % integeters to signed integers to accomidate negative (adjusted)
     % timestamps for pretrigger data.
     if (data_file_main_version_number > 1) || ...
        (data_file_main_version_number == 1 && ...
         data_file_secondary_version_number >= 2)
-         t_amplifier(amplifier_index:(amplifier_index + nspd - 1)) = fread(fid, nspd, 'int32');
-    else t_amplifier(amplifier_index:(amplifier_index + nspd - 1)) = fread(fid, nspd, 'uint32');
+         data.AMP_time( data.AMP_samples + (0 : nspd-1) ) = fread(fid, nspd, 'int32');
+    else data.AMP_time( data.AMP_samples + (0 : nspd-1) ) = fread(fid, nspd, 'uint32');
     end
-    
 
     if (num.AMP_channels > 0)
       data.AMP_chanels(:, data.AMP_samples + (0 : nspd-1)) = ...
@@ -395,11 +401,11 @@ for ii = 1:num_data_blocks
     data.DO_samples = data.DO_samples + nspd;
 end
 
-
 % Make sure we have read exactly the right amount of data.
 bytes_remaining = filesize - ftell(fid);
 if (bytes_remaining ~= 0)
-    warning('End of file not reached.');
+     warning('End of file not reached.');
+else disp('Done.')
 end
 
 % Close data file.
@@ -429,19 +435,20 @@ else data.ADC_channels = 50.354e-6 * data.ADC_channels; % units = volts
 end
 
 % Check for gaps in timestamps.
-num_gaps = sum(diff(t_amplifier) ~= 1);
+num_gaps = sum(diff(data.AMP_time) ~= 1);
 if (num_gaps == 0)
 else fprintf('Warning: %d gaps in timestamp data found. %s\n', ...
                        num_gaps, 'Time scale will not be uniform!');
 end
 
 % Scale time steps (units = seconds).
-t_amplifier = t_amplifier / sample_rate;
-t_aux_input = t_amplifier(1:4:end);
-t_supply_voltage = t_amplifier(1:60:end);
-t_board_adc = t_amplifier;
-t_dig = t_amplifier;
-t_temp_sensor = t_supply_voltage;
+data.AMP_time  = data.AMP_time / sample_rate;
+data.AUX_time  = data.AMP_time(1:4:end);
+data.VOLT_time = data.AMP_time(1:60:end);
+data.ADC_time  = data.AMP_time;
+data.DI_time   = data.AMP_time;
+data.DO_time   = data.AMP_time;
+data.TEMP_time = data.VOLT_time;
 
 % If the software notch filter was selected during the recording, apply the
 % same notch filter to amplifier data here.  But don't do this for v3.0+ 
@@ -454,188 +461,73 @@ if (notch_filter_frequency > 0 && data_file_main_version_number < 3)
   end
 end
 
-% Now that we have the whole file we select the parts we need.
-% First we select the datastreams requested, then select the data range
-% requested. With every step we check whether we do have the data in
-% the file actually. If something is requested, but not included in the
-% file, a warning is displayed in the commandline.
-    
-error I_think_redundant
+% as defined above:
+% channel_types = {'amp','aux','volt','adc','DI','DO','temp'};
+% opt_id = ['do_' upper(chan_type{1}) '_channels'];
 
-if opts.n_streams_req == 0  % Nothing specified, all output requested
-    % Output order:
-    % amplifier channels => auxiliary channels => ADC channels => Digital
-    % channels => volts => temperature
-    selected_output = {'ampch', 1:size(amplifier_data,1), ...
-                       'auxch', 1:size(aux_input_data,1), ...
-                       'ADCch', 1:size(board_adc_data,1), ...
-                       'DIGin', 1:size(board_dig_in_data,1), ...
-                       'DIGout', 1:size(board_dig_out_data,1), ...
-                       'volt', 'yes', ...
-                       'tempch', 'yes' };
-else
-    selected_output = cell(0);
-    arg_named = @(x) ismember(varargin(1:2:end),x);
-    if any(arg_named('ampch'))
-        selected_output(1,end+(1:2)) = {'ampch', opts.do_AMP_channels};
-    end
-    if any(arg_named('auxch'))
-        selected_output(1,end+(1:2)) = {'auxch', opts.do_AUX_channels};
-    end
-    if any(arg_named('ADCch'))
-        selected_output(1,end+(1:2)) = {'ADCch', opts.do_ADC_channels};
-    end
-    if any(arg_named('DIGin'))
-        selected_output(1,end+(1:2)) = {'DIGin', opts.do_DI_channels};
-    end
-    if any(arg_named('DIGout'))
-        selected_output(1,end+(1:2)) = {'DIGout', opts.do_DO_channels};
-    end
-    if any(arg_named('volt'))
-        selected_output(1,end+(1:2)) = {'volt', opts.do_VOLT_channels};
-    end
-    if any(arg_named('tempch'))
-        selected_output(1,end+(1:2)) = {'tempch', opts.do_VOLT_channels};
-    end
-end
+for ty = channel_types
 
-for arg=1:2:length(selected_output)
-  switch (selected_output{arg})
-    case 'ampch'
-      if size(amplifier_data,1) > 0
-        amplifier_channels = amplifier_channels(1,selected_output{arg+1});
-        amplifier_data = amplifier_data(selected_output{arg+1},:);
-        ts_amp = timeseries;
-        ts_amp.name = 'ampch';
-        ts_amp.time = t_amplifier;
-        ts_amp.data = amplifier_data';
-        if opts.time_roi ~=0
-            ts_amp = select_time(ts_amp,opts.time_roi);
-        end
-        ts_amp.DataInfo.Units = 'uV';
-        ts_amp.TimeInfo.Units = 'seconds';
-        varargout{arg} = ts_amp;
-        varargout{arg+1} = amplifier_channels;
-      elseif opts.n_streams_req > 0
-        disp('WARNING: No amplifier channels found in file!')
-      end
-    case 'auxch'
-      if size(aux_input_data,1) > 0
-        aux_input_channels = aux_input_channels(1,selected_output{arg+1});
-        aux_input_data = aux_input_data(selected_output{arg+1},:);
-        ts_aux = timeseries;
-        ts_aux.name = 'auxch';
-        ts_aux.time = t_aux_input;
-        ts_aux.data = aux_input_data';
-        if opts.time_roi~=0
-            ts_aux = select_time(ts_aux,opts.time_roi);
-        end
-        ts_aux.DataInfo.Unit = 'uV';
-        ts_aux.TimeInfo.Units = 'seconds';
-        varargout{arg} = ts_aux;
-        varargout{arg+1} = aux_input_channels;
-      elseif opts.n_streams_req > 0
-        disp('WARNING: No auxiliary inputs found in file!')
-      end
-    case 'ADCch'
-      if size(board_adc_data,1)>0
-        board_adc_channels = board_adc_channels(1,selected_output{arg+1});
-        board_adc_data = board_adc_data(selected_output{arg+1},:);
-        ts_board_adc = timeseries;
-        ts_board_adc.name = 'ADCch';
-        ts_board_adc.time = t_board_adc;
-        ts_board_adc.data = board_adc_data';
-        if opts.time_roi ~=0
-            ts_board_adc = select_time(ts_board_adc,opts.time_roi);
-        end
-        ts_board_adc.DataInfo.Unit = 'uV';
-        ts_board_adc.TimeInfo.Units = 'seconds';
-        varargout{arg} = ts_board_adc;
-        varargout{arg+1} = board_adc_channels;
-      elseif opts.n_streams_req > 0
-        disp('WARNING: No board ADC channels found in file!');
-      end
-    case 'DIGin'
-      if size(board_dig_in_data,1)>0
-        board_dig_in_channels = board_dig_in_channels(1,selected_output{arg+1});
-        board_dig_in_data = board_dig_in_data(selected_output{arg+1},:);
-        ts_dig_in = timeseries;
-        ts_dig_in.name = 'DIGin';
-        ts_dig_in.time = t_amplifier;
-        ts_dig_in.data = board_dig_in_data';
-        if opts.time_roi ~=0
-            ts_dig_in = select_time(ts_dig_in,opts.time_roi);
-        end
-        ts_dig_in.TimeInfo.Units = 'seconds';
-        varargout{arg} = ts_dig_in;
-        varargout{arg+1} = board_dig_in_channels;
-      elseif opts.n_streams_req > 0
-        disp('WARNING: No board digital in channels found in file!');
-      end
-    case 'DIGout'
-      if size(board_dig_out_data,1)>0
-        board_dig_out_channels = board_dig_out_channels(1,selected_output{arg+1});
-        board_dig_out_data = board_dig_out_data(selected_output{arg+1},:);
-        ts_dig_out = timeseries;
-        ts_dig_out.name = 'DIGout';
-        ts_dig_out.time = t_amplifier;
-        ts_dig_out.data = board_dig_out_data';
-        if opts.time_roi ~=0
-            ts_dig_out = select_time(ts_dig_out,opts.time_roi);
-        end
-        ts_dig_out.TimeInfo.Units = 'seconds';
-        varargout{arg} = ts_dig_out;
-        varargout{arg+1} = board_dig_out_channels;
-      elseif opts.n_streams_req > 0
-        disp('WARNING: No board digital out channels found in file!');
-      end
-    case 'volt'
-      if size(supply_voltage_data,1)>0
-        ts_volt = timeseries;
-        ts_volt.name = 'supply_voltage';
-        ts_volt.time = t_supply_voltage;
-        ts_volt.data = supply_voltage_data';
-        if opts.time_roi ~=0
-            ts_volt = select_time(ts_volt,opts.time_roi);
-        end
-        ts_volt.TimeInfo.Units = 'seconds';
-        varargout{arg} = ts_volt;
-        varargout{arg+1} = supply_voltage_channels;
-      elseif opts.n_streams_req > 0
-        disp('WARNING: No supply voltage data found in file!');
-      end
-    case 'tempch'
-      if size(temp_sensor_data,1)>0
-        ts_temp = timeseries;
-        ts_temp.name = 'temperature';
-        ts_temp.time = t_temp_sensor;
-        ts_temp.data = temp_sensor_data';
-        if opts.time_roi ~= 0
-            ts_temp = select_time(ts_temp,opts.time_roi);
-        end
-        ts_temp.TimeInfo.Units = 'seconds';
-        varargout{arg} = ts_temp;
-        varargout{arg+1} = '1';
-      elseif opts.n_streams_req > 0
-        disp('WARNING: No temperature data found in file!');
-      end
-  end
-end
+    sel = opts.(do_ch_(ty)); % selection
+    n_c = numel(channels.(chan_(ty))); 
+
+    % First, check to see if we skip this output type 
+    if opts.n_streams_req > 0 && ~any(opts.(do_ch_(ty))), continue, end
+    if opts.n_streams_req == 0, sel = 1:n_c;
+      if ~any(sel), continue, end
+    elseif n_c == 0
+      sprintf('WARNING: No %s channels found in file!\n', ty{1})
+      continue
+    end
  
-return
+    % parse selection applied as necessary
+    if numel(sel) == 1 && n_c > 1 && islogical(sel) && sel
+        sel = 1:n_c;
+    elseif isnumeric(sel), sel(sel>n_c | sel<1) = []; 
+    elseif ischar(sel) 
+        if strcmpi(sel,'off'), continue, end
+        sel = 1:n_c;
+    end
 
+    output.config.(chan_(ty)) = channels.(chan_(ty))(sel);
+
+    this = timeseries;
+    this.name = upper(ty{1});
+    this.time = data.(time_(ty));
+    this.data = data.(chan_(ty))(sel,:)';
+
+    if ~isempty(opts.time_roi)
+        this = select_time(this, opts.time_roi);
+    end
+
+    this.TimeInfo.Units = 'seconds';
+    switch ty{1}
+        case 'amp',  this.DataInfo.Units = 'uV';
+        case 'temp', this.DataInfo.Units = 'deg C';
+        otherwise,   this.DataInfo.Units = 'V';
+    end
+
+    output.(upper(ty{1]})) = this;
+end
+
+if nargout == 0
+    assignin('caller','intanData',output)
+    clear
+end
+
+return
 
 function new = select_time(old,time_range)
 % Enter a timeseries and a range.
 % Returns a new timeseries according to range.
 % Range should be a 1x2 matrix with [start end]
 new = timeseries;
-data = old.data(old.time>time_range(1,1),:);
-time = old.time(old.time>time_range(1,1));
-data = data(time<time_range(1,2),:);
-time = time(time<time_range(1,2));
+data = old.data(old.time>min(time_range),:);
+time = old.time(old.time>min(time_range));
+data = data(time<max(time_range),:);
+time = time(time<min(time_range));
 new.data = data;
 new.time = time;
+new.name = old.name;
 
 return
 
@@ -707,9 +599,6 @@ end
 return
 
 
-
-
-
 % Compressed text output function added CE 12 Sep 2022
 function printInfo(varargin)
 
@@ -720,3 +609,15 @@ s = sprintf(varargin{:});
 fprintf('%s',s)
 
 return
+
+function console_progress_bar( frac )
+
+w = 35;
+lhs = repmat('#',1,floor(frac * w));
+
+if frac == 1, printInfo('[%s] ',lhs), return, end
+
+rhs = repmat(' ',1,w-numel(lhs)-1);
+ff = floor(10*mod(frac*w,1));
+
+printInfo('[%s%d%s] ',lhs,ff,rhs)

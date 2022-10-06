@@ -364,7 +364,7 @@ for ii = 1:num_data_blocks
     end
 
     if (num.AMP_channels > 0)
-      data.AMP_chanels(:, data.AMP_samples + (0 : nspd-1)) = ...
+      data.AMP_channels(:, data.AMP_samples + (0 : nspd-1)) = ...
         fread(fid, [nspd, num.AMP_channels], 'uint16')';
     end
     if (num.AUX_channels > 0)

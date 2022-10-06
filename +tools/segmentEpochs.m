@@ -85,13 +85,13 @@ dd = sort([opts.threshold_min opts.threshold_max]);
 
 %%
 stim_active = false; 
-for tt = 1:numel(trig.Data)
+for tt = 1:length(trig.time)
   if stim_active
-    if trig.Data(tt) > dd(1), continue, end
+    if trig.data(tt) > dd(1), continue, end
     epochs.finish(end+1,1) = tt;
     stim_active = false;
   else
-    if trig.Data(tt) < dd(2), continue, end
+    if trig.data(tt) < dd(2), continue, end
     epochs.start(end+1,1) = tt;
     stim_active = true;
   end
@@ -133,10 +133,12 @@ epochs.frame_size = round([-n_sam_pre n_sam_active + n_sam_post]);
 
 %% Determine stim properties
 
+v_ = @(x) reshape(x,[],1); % vertical vector
+
 for ii = 1:numel(epochs.start)
 
-    t = trig.Time(epochs.start(ii):epochs.finish(ii));
-    y = trig.Data(epochs.start(ii):epochs.finish(ii));
+    t = trig.time(epochs.start(ii):epochs.finish(ii));
+    y = trig.data(epochs.start(ii):epochs.finish(ii));
 
     t = t - t(1); 
     epochs.duration(ii,1) = t(end);
@@ -147,7 +149,7 @@ for ii = 1:numel(epochs.start)
         y(1 : n_cut) = []; y(end-n_cut+1 : end) = []; 
     end
     
-    est = fit(t,y,'fourier1'); 
+    est = fit(v_(t),v_(y),'fourier1'); 
 
     epochs.frequency(ii,1) = est.w/2/pi;
     epochs.amplitude(ii,1) = sqrt( est.a1^2 + est.b1^2 );
@@ -182,9 +184,9 @@ epochs.units.finish = 'samples of ADC.Time';
 epochs.units.frame_size = 'samples';
 epochs.units.duration = trig.TimeInfo.Units;
 epochs.units.frequency = 'Hz (if duration in s)';
-epochs.units.amplitude = [trig.Name ' ' trig.DataInfo.Units];
+epochs.units.amplitude = [trig.name ' ' trig.DataInfo.Units];
 epochs.units.phase = 'radians';
-epochs.units.average = [trig.Name ' ' trig.DataInfo.Units];
+epochs.units.average = [trig.name ' ' trig.DataInfo.Units];
 
 %% 
 if any(named('-d')), data = get_('-d'); 
@@ -198,6 +200,9 @@ data.epochs = epochs;
 data.config.epochs = opts; 
 data = apply_segmentation(data, epochs);
 
+% shift output argument sequence
+opts = epochs; epochs = data;
+
 return
 
 
@@ -208,13 +213,40 @@ all_upper = @(s) all(ismember(s,['A':'Z' '_']));
 data_fields = data_fields(cellfun(all_upper,data_fields));
 
 for channel_type = data_fields
-    
-    
+  %%
+  source = data.(channel_type{1});
+  is_ts = ~isstruct(source);
 
-    error mk_segmentation
+  if is_ts, this = timeseries;
+       this.name = source.name;
+       this.TimeInfo = source.TimeInfo;
+       this.DataInfo = source.DataInfo;
+  else this = source;
+       this.time = [];
+       this.data = []; 
+       if size(source.data,3) > 1
+         error('this data appears to have already been segmented into epochs')
+       end
+  end
 
+  for tt = 1:numel(epochs.start)
+    sel = epochs.start(tt) + (epochs.frame_size(1):epochs.frame_size(2));
+    ok = (sel > 0 & sel < numel(source.time));
+    sel(~ok) = 1; 
+
+    if isempty(this.time)
+        this.time = (sel - epochs.start(tt)) * mean(diff(source.time));
+    end
+
+    this.data = cat(3, this.data, source.data(sel,:));
+    this.data(~ok,:,end) = nan;
+  end
+  %%
+  data.(channel_type{1}) = this; 
 end
 
-
+if isfield(data,'spikes')
+    error('TODO: implement epoch for spiketimes')
+end
 
 return

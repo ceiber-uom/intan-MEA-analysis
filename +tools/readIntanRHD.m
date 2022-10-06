@@ -1,13 +1,4 @@
-
-
-
-
-
-
-
-
-function [output, frequency_parameters, notes, spike_triggers, ... 
-          varargout] = readIntanRHD(filename, varargin)
+function output = readIntanRHD(filename, varargin)
 % Function to read intan .RHD files. Adapted from read_Intan_RHD2000_file.m
 % Version 3.0 as can be downloaded from the manufacuter's website: 
 %         http://www.intantech.com/downloads.html
@@ -21,23 +12,23 @@ function [output, frequency_parameters, notes, spike_triggers, ...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % INPUTS:
 % filename : Filename (including path if necessary)
-% 'range' : declares that the following input is a range of data (in sec)
-%           to load.
-% 'ampch' : Lists the amplifier channnels to load
-% 'auxch' : Lists the auxilary channels to load
-% 'volt'  : Declares whether the voltage channel should be loaded or no
-%           ('yes' or 'no')
-% 'ADCch' : Lists the onboard ADC channels to load
-% 'DIGin' : Lists the onboard digital input channels to load
-% 'DIGout' : Lists the onboard digital output channels to load
-% 'tempch': Declares whether the temperature data should be loaded ('yes'
-%           or 'no')
+% 'roi'   : Return a specified range of data (in sec)
+% 'amp'   : List the amplifier channnels to load
+% 'aux'   : List the auxilary channels to load
+% 'volt'  : Should the supply voltage channel should be loaded? (logical)
+% 'ADC'   : List the on-board ADC channels to load
+% 'DI'    : List the onboard digital input channels to load
+% 'DO'    : List the onboard digital output channels to load
+% 'temp'  : Should temperature data should be loaded? (logical)
 % 'notch' : Assign '50Hz' or '60Hz' to enable notch filtering. If left
 %           undefined then no filter is applied. If the file was saved with
 %           notch filtering enabled (v3 or higher), it is not recomputed.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % OUTPUTS
+% 
+% The output is a structure containing the following fields: 
+% 
 % The first output is always the overview of all outputs.
 % The second output is always a structure with frequency settings
 % The third output is always the notes structure
@@ -59,26 +50,10 @@ function [output, frequency_parameters, notes, spike_triggers, ...
 % This loads the three auxiliary streams, and channel 1 from the general
 % amplifier. No range is specified, so the whole stream is loaded.
 
-% #TODO - CE - convert the code to use my named/get_ syntax
+named = @(n) strncmpi(varargin,n,length(n));
+get_ = @(v) varargin{find(named(v))+1};
 
-% First we parse the variable inputs to check whether the list makes sense:
-p = inputParser;
-p.addRequired('Filename',@(n) ischar(n));
-p.addParameter('notch','notchfreq',@(nf) ...
-                  strcmp(nf,'50Hz') || strcmp(nf,'60Hz'));
-p.addParameter('range','roi',@(rng) length(rng)==2);
-p.addParameter('ampch','ch',@(chlist) ~isempty(chlist));
-p.addParameter('auxch','aux',@(aux) ~isempty(aux));
-p.addParameter('volt','Vch', @(Vch) ...
-                       strcmpi(Vch,'yes') || strcmpi(Vch,'no'));
-p.addParameter('ADCch','ADC',@(ADC) ~isempty(ADC));
-p.addParameter('DIGin','DI',@(DIG) ~isempty(DIG)>0);
-p.addParameter('DIGout','DO',@(DIG) ~isempty(DIG)>0);
-p.addParameter('tempch','temp',@(temp) ...
-                        strcmpi(temp,'yes') || strcmpi(temp,'no'));
-
-p.parse(filename,varargin{:,:})
-
+if nargin < 1, filename = '?'; end
 if ~exist(filename,'file')
     [fn,fp] = uigetfile('*.rhd',[],filename);
     if ~any(fn), error('Cancelled'), end
@@ -87,44 +62,33 @@ end
 
 % Now we assign the values defined in the inputs to the respective
 % variables and set some defaults.
-opts.nrstreamsrequested = 0;
+opts.n_streams_req = 0;
 opts.notchfreq = 0;
-opts.channellist = 0;
-opts.range = 0;
-opts.do_aux = 0;
-opts.do_supply_volts = 0;
-opts.do_ADC_channels = 0;
-opts.do_DI_channels = 0;
-opts.do_DO_channels = 0;
-opts.do_temperature = 0;
-for arg=1:2:length(varargin)
-    switch (varargin{arg})
-        case 'notch'
-            opts.notchfreq = varargin{arg+1};
-        case 'ampch'
-            opts.channellist = varargin{arg+1};
-            opts.nrstreamsrequested=opts.nrstreamsrequested+1;
-        case 'range'
-            opts.range = varargin{arg+1};
-        case 'auxch'
-            opts.do_aux = varargin{arg+1};
-            opts.nrstreamsrequested=opts.nrstreamsrequested+1;
-        case 'volt'
-            opts.do_supply_volts = 1;
-            opts.nrstreamsrequested=opts.nrstreamsrequested+1;
-        case 'ADCch'
-            opts.do_ADC_channels = varargin{arg+1};
-            opts.nrstreamsrequested=opts.nrstreamsrequested+1;
-        case 'DIGin'
-            opts.do_DI_channels = varargin{arg+1};
-            opts.nrstreamsrequested=opts.nrstreamsrequested+1;
-        case 'DIGout'
-            opts.do_DO_channels = varargin{arg+1};
-            opts.nrstreamsrequested=opts.nrstreamsrequested+1;            
-        case 'tempch'
-            opts.do_temperature = 1;
-            opts.nrstreamsrequested=opts.nrstreamsrequested+1;
-    end
+opts.time_roi = 0;
+
+% opts.do_AMP_channels = 0;
+% opts.do_AUX_channels = 0;
+% opts.do_VOLT_channels = 0;
+% opts.do_ADC_channels = 0;
+% opts.do_DI_channels = 0;
+% opts.do_DO_channels = 0;
+% opts.do_TEMP_channels = 0;
+
+if any(named('notch')), opts.notchfreq = get_('notch'); end
+if any(named('roi')),       opts.time_roi = get_('roi');
+elseif any(named('range')), opts.time_roi = get_('range');
+end
+
+channel_types = {'amp','aux','volt','adc','DI','DO','temp'};
+
+for chan_type = channel_types
+
+  opt_id = ['do_' upper(chan_type{1}) '_channels'];
+  opts.(opt_id) = false; 
+
+  if any(named(chan_type{1})), opts.(opt_id) = get_('amp');  
+          opts.n_streams_req = opts.n_streams_req+1;
+  end
 end
     
 % The actual start of the file opening. Here we first open the file to gain
@@ -132,7 +96,11 @@ end
 fid = fopen(filename, 'r');
 s = dir(filename);
 filesize = s.bytes;
-    
+
+output.filename = filename; 
+output.notes = ''; 
+output.config = struct;
+
 when_done_fclose = onCleanup(@() fclose(fid)); 
 
 % Check 'magic number' at beginning of file to make sure this is an Intan
@@ -149,7 +117,6 @@ data_file_secondary_version_number = fread(fid, 1, 'int16');
 fprintf('Reading Intan Technologies RHD2000 Data File, Version %d.%d\n', ...
          data_file_main_version_number, data_file_secondary_version_number);
 printInfo(); % Added CE 12 Sep 2022
-
 
 if (data_file_main_version_number == 1), num_samples_per_data_block = 60;
 else                                     num_samples_per_data_block = 128;
@@ -178,9 +145,9 @@ desired_impedance_test_frequency = fread(fid, 1, 'single');
 actual_impedance_test_frequency = fread(fid, 1, 'single');
     
 % Place notes in data strucure
-notes = struct( 'note1', fread_QString(fid), ...
-                'note2', fread_QString(fid), ...
-                'note3', fread_QString(fid) );
+output.notes = struct( 'note1', fread_QString(fid), ...
+                       'note2', fread_QString(fid), ...
+                       'note3', fread_QString(fid) );
     
 % If data file is from GUI v1.1 or later, 
 % see if temperature sensor data was saved.
@@ -200,12 +167,14 @@ end
 % If data file is from v2.0 or later (Intan Recording Controller),
 % load name of digital reference channel.
 if (data_file_main_version_number > 1)
-    notes.reference_channel = fread_QString(fid);
+    output.notes.reference_channel = fread_QString(fid);
 end
 
+output.notes.version = [data_file_main_version_number ... 
+                        data_file_secondary_version_number];
 
 % Place frequency-related information in data structure.
-frequency_parameters = struct( ...
+output.config.general = struct( ...
         'amplifier_sample_rate', sample_rate, ...
         'aux_input_sample_rate', sample_rate / 4, ...
         'supply_voltage_sample_rate', sample_rate / 60, ...
@@ -248,21 +217,14 @@ channel_struct = struct( ...
 
 new_channel = struct(channel_struct);
 
-% Create structure arrays for each type of data channel.
-amplifier_channels = struct(channel_struct);
-aux_input_channels = struct(channel_struct);
-supply_voltage_channels = struct(channel_struct);
-board_adc_channels = struct(channel_struct);
-board_dig_in_channels = struct(channel_struct);
-board_dig_out_channels = struct(channel_struct);
+channels = struct;
+chan_ = @(ty) [upper(ty{1}) '_channels'];
+sams_ = @(ty) [upper(ty{1}) '_samples'];
 
-amplifier_index = 1;
-aux_input_index = 1;
-supply_voltage_index = 1;
-board_adc_index = 1;
-board_dig_in_index = 1;
-board_dig_out_index = 1;
-    
+for ty = channel_types
+    channels.(chan_(ty)) = struct(channel_struct);
+end
+
 % Read signal summary from data file header.
 number_of_signal_groups = fread(fid, 1, 'int16');
 
@@ -307,25 +269,13 @@ for signal_group = 1:number_of_signal_groups
         if ~channel_enabled, continue, end
 
         switch signal_type
-          case 0
-            amplifier_channels(amplifier_index) = new_channel;
-            spike_triggers(amplifier_index) = new_trigger_channel;
-            amplifier_index = amplifier_index + 1;
-          case 1
-            aux_input_channels(aux_input_index) = new_channel;
-            aux_input_index = aux_input_index + 1;
-          case 2
-            supply_voltage_channels(supply_voltage_index) = new_channel;
-            supply_voltage_index = supply_voltage_index + 1;
-          case 3
-            board_adc_channels(board_adc_index) = new_channel;
-            board_adc_index = board_adc_index + 1;
-          case 4
-            board_dig_in_channels(board_dig_in_index) = new_channel;
-            board_dig_in_index = board_dig_in_index + 1;
-          case 5
-            board_dig_out_channels(board_dig_out_index) = new_channel;
-            board_dig_out_index = board_dig_out_index + 1;
+          case 0, channels.AMP_channels(end+1) = new_channel;
+            spike_triggers(end+1) = new_trigger_channel;
+          case 1, channels.AUX_channels(end+1) = new_channel;
+          case 2, channels.VOLT_channels(end+1) = new_channel;
+          case 3, channels.ADC_channels(end+1) = new_channel;
+          case 4, channels.DI_channels(end+1) = new_channel;
+          case 5, channels.DO_channels(end+1) = new_channel;
           otherwise
             error('Unknown channel type');
         end
@@ -335,113 +285,114 @@ end
 fprintf('\n'); % terminate printInfo ... 
 
 % Summarize contents of data file.
-num_amplifier_channels = amplifier_index - 1;
-num_aux_input_channels = aux_input_index - 1;
-num_supply_voltage_channels = supply_voltage_index - 1;
-num_board_adc_channels = board_adc_index - 1;
-num_board_dig_in_channels = board_dig_in_index - 1;
-num_board_dig_out_channels = board_dig_out_index - 1;
+num = struct;
+for ty = channel_types
+    num.(chan_(ty)) = numel(channels.(chan_(ty)));
+end
 
 % Determine how many samples the data file contains.
+nspd = num_samples_per_data_block;
 
 % Each data block contains num_samples_per_data_block amplifier samples.
-bytes_per_block = num_samples_per_data_block * 4;  % timestamp data
-bytes_per_block = bytes_per_block + num_samples_per_data_block * 2 * num_amplifier_channels;
+bytes_per_block = nspd * 4;  % timestamp data
+bytes_per_block = bytes_per_block + nspd * 2 * num.AMP_channels;
 % Auxiliary inputs are sampled 4x slower than amplifiers
-bytes_per_block = bytes_per_block + (num_samples_per_data_block / 4) * 2 * num_aux_input_channels;
+bytes_per_block = bytes_per_block + (nspd / 4) * 2 * num.AUX_channels;
 % Supply voltage is sampled once per data block
-bytes_per_block = bytes_per_block + 1 * 2 * num_supply_voltage_channels;
+bytes_per_block = bytes_per_block + 1 * 2 * num.VOLT_channels;
 % Board analog inputs are sampled at same rate as amplifiers
-bytes_per_block = bytes_per_block + num_samples_per_data_block * 2 * num_board_adc_channels;
+bytes_per_block = bytes_per_block + nspd * 2 * num.ADC_channels;
 % Board digital inputs are sampled at same rate as amplifiers
-if (num_board_dig_in_channels > 0)
-    bytes_per_block = bytes_per_block + num_samples_per_data_block * 2;
+if (num.DI_channels > 0)
+    bytes_per_block = bytes_per_block + nspd * 2;
 end
 % Board digital outputs are sampled at same rate as amplifiers
-if (num_board_dig_out_channels > 0)
-    bytes_per_block = bytes_per_block + num_samples_per_data_block * 2;
+if (num.DO_channels > 0)
+    bytes_per_block = bytes_per_block + nspd * 2;
 end
 % Temp sensor is sampled once per data block
-if (num_temp_sensor_channels > 0)
-   bytes_per_block = bytes_per_block + 1 * 2 * num_temp_sensor_channels; 
-end
+bytes_per_block = bytes_per_block + 1 * 2 * num.TEMP_channels; 
 
 % How many data blocks remain in this file?
 bytes_remaining = filesize - ftell(fid);
 data_present = (bytes_remaining > 0);
 num_data_blocks = bytes_remaining / bytes_per_block;
 
-num_amplifier_samples = num_samples_per_data_block * num_data_blocks;
-num_aux_input_samples = (num_samples_per_data_block / 4) * num_data_blocks;
-num_supply_voltage_samples = 1 * num_data_blocks;
-num_board_adc_samples = num_samples_per_data_block * num_data_blocks;
-num_board_dig_in_samples = num_samples_per_data_block * num_data_blocks;
-num_board_dig_out_samples = num_samples_per_data_block * num_data_blocks;
+num.AMP_samples  = nspd * num_data_blocks;
+num.AUX_samples  = (nspd / 4) * num_data_blocks;
+num.VOLT_samples = 1 * num_data_blocks;
+num.ADC_samples  = nspd * num_data_blocks;
+num.DI_samples   = nspd * num_data_blocks;
+num.DO_samples   = nspd * num_data_blocks;
+num.TEMP_samples = num_temp_sensor_channels;
 
 % record_time = num_amplifier_samples / sample_rate;
 
 % Pre-allocate memory for data.
-t_amplifier = zeros(1, num_amplifier_samples);
+t_amplifier = zeros(1, num.AMP_samples);
 
 assert(data_present,'this file does not contain data to load!')
 
-amplifier_data = zeros(num_amplifier_channels, num_amplifier_samples);
-aux_input_data = zeros(num_aux_input_channels, num_aux_input_samples);
-supply_voltage_data = zeros(num_supply_voltage_channels, num_supply_voltage_samples);
-temp_sensor_data = zeros(num_temp_sensor_channels, num_supply_voltage_samples);
-board_adc_data = zeros(num_board_adc_channels, num_board_adc_samples);
-board_dig_in_data = zeros(num_board_dig_in_channels, num_board_dig_in_samples);
-board_dig_in_raw = zeros(1, num_board_dig_in_samples);
-board_dig_out_data = zeros(num_board_dig_out_channels, num_board_dig_out_samples);
-board_dig_out_raw = zeros(1, num_board_dig_out_samples);
+data = struct; 
+for ty = channel_types
+    data.(chan_(ty)) = zeros(num.(chan_(ty)), num.(sams_(ty)));
+    data.(sams_(ty)) = 1; 
+end
+
+data.DI_raw = zeros(1,num.DI_channels);
+data.DO_raw = zeros(1,num.DO_channels);
 
 % Read sampled data from file.
 
-amplifier_index = 1;
-aux_input_index = 1;
-supply_voltage_index = 1;
-board_adc_index = 1;
-board_dig_in_index = 1;
-
-for i=1:num_data_blocks
+for ii = 1:num_data_blocks
     % In version 1.2, we moved from saving timestamps as unsigned
     % integeters to signed integers to accomidate negative (adjusted)
     % timestamps for pretrigger data.
     if (data_file_main_version_number > 1) || ...
        (data_file_main_version_number == 1 && ...
         data_file_secondary_version_number >= 2)
-         t_amplifier(amplifier_index:(amplifier_index + num_samples_per_data_block - 1)) = fread(fid, num_samples_per_data_block, 'int32');
-    else t_amplifier(amplifier_index:(amplifier_index + num_samples_per_data_block - 1)) = fread(fid, num_samples_per_data_block, 'uint32');
+         t_amplifier(amplifier_index:(amplifier_index + nspd - 1)) = fread(fid, nspd, 'int32');
+    else t_amplifier(amplifier_index:(amplifier_index + nspd - 1)) = fread(fid, nspd, 'uint32');
     end
-    if (num_amplifier_channels > 0)
-        amplifier_data(:, amplifier_index:(amplifier_index + num_samples_per_data_block - 1)) = fread(fid, [num_samples_per_data_block, num_amplifier_channels], 'uint16')';
-    end
-    if (num_aux_input_channels > 0)
-        aux_input_data(:, aux_input_index:(aux_input_index + (num_samples_per_data_block / 4) - 1)) = fread(fid, [(num_samples_per_data_block / 4), num_aux_input_channels], 'uint16')';
-    end
-    if (num_supply_voltage_channels > 0)
-        supply_voltage_data(:, supply_voltage_index) = fread(fid, [1, num_supply_voltage_channels], 'uint16')';
-    end
-    if (num_temp_sensor_channels > 0)
-        temp_sensor_data(:, supply_voltage_index) = fread(fid, [1, num_temp_sensor_channels], 'int16')';
-    end
-    if (num_board_adc_channels > 0)
-        board_adc_data(:, board_adc_index:(board_adc_index + num_samples_per_data_block - 1)) = fread(fid, [num_samples_per_data_block, num_board_adc_channels], 'uint16')';
-    end
-    if (num_board_dig_in_channels > 0)
-        board_dig_in_raw(board_dig_in_index:(board_dig_in_index + num_samples_per_data_block - 1)) = fread(fid, num_samples_per_data_block, 'uint16');
-    end
-    if (num_board_dig_out_channels > 0)
-        board_dig_out_raw(board_dig_out_index:(board_dig_out_index + num_samples_per_data_block - 1)) = fread(fid, num_samples_per_data_block, 'uint16');
-    end
+    
 
-    amplifier_index = amplifier_index + num_samples_per_data_block;
-    aux_input_index = aux_input_index + (num_samples_per_data_block / 4);
-    supply_voltage_index = supply_voltage_index + 1;
-    board_adc_index = board_adc_index + num_samples_per_data_block;
-    board_dig_in_index = board_dig_in_index + num_samples_per_data_block;
-    board_dig_out_index = board_dig_out_index + num_samples_per_data_block;
-
+    if (num.AMP_channels > 0)
+      data.AMP_chanels(:, data.AMP_samples + (0 : nspd-1)) = ...
+        fread(fid, [nspd, num.AMP_channels], 'uint16')';
+    end
+    if (num.AUX_channels > 0)
+      data.AUX_channels(:, data.AUX_samples + (0:(nspd/4)-1)) = ... 
+        fread(fid, [(nspd / 4), num.AUX_channels], 'uint16')';
+    end
+    if (num.VOLT_channels > 0)
+      data.VOLT_channels(:, data.VOLT_samples) = ...
+        fread(fid, [1, num.VOLT_channels], 'uint16')';
+    end
+    if (num.TEMP_channels > 0)
+      data.TEMP_channels(:, data.TEMP_samples) = ...
+        fread(fid, [1, num.TEMP_channels], 'int16')';
+    end
+    if (num.ADC_channels > 0)
+      data.ADC_channels(:, data.ADC_samples + (0 : nspd-1)) = ...
+        fread(fid, [nspd, num.ADC_channels], 'uint16')';
+    end
+    if (num.DI_channels > 0)
+      data.DI_raw(data.DI_samples + (0 : nspd-1)) = ...
+        fread(fid, nspd, 'uint16');
+    end
+    if (num.DO_channels > 0)
+      data.DO_raw(data.DO_samples + (0: nspd-1)) = ...
+        fread(fid, nspd, 'uint16');
+    end
+    
+    % update indices 
+    data.AMP_samples = data.AMP_samples + nspd;
+    data.AUX_samples = data.AUX_samples + (nspd / 4);
+    data.VOLT_samples = data.VOLT_samples + 1;
+    data.TEMP_samples = data.TEMP_samples + 1;
+    data.ADC_samples = data.ADC_samples + nspd;
+    data.DI_samples = data.DI_samples + nspd;
+    data.DO_samples = data.DO_samples + nspd;
 end
 
 
@@ -454,28 +405,27 @@ end
 % Close data file.
 clear when_done_fclose % fclose(fid);
 
-
 % Extract digital input channels to separate variables.
-for i=1:num_board_dig_in_channels
-    mask = 2^(board_dig_in_channels(i).native_order) * ones(size(board_dig_in_raw));
-    board_dig_in_data(i, :) = (bitand(board_dig_in_raw, mask) > 0);
+for ii = 1:num.DI_channels
+    mask = 2^(channels.DI_channels(ii).native_order) * ones(size(data.DI_raw));
+    data.DI_channels(ii, :) = (bitand(data.DI_raw, mask) > 0);
 end
-for i=1:num_board_dig_out_channels
-    mask = 2^(board_dig_out_channels(i).native_order) * ones(size(board_dig_out_raw));
-    board_dig_out_data(i, :) = (bitand(board_dig_out_raw, mask) > 0);
+for ii=1:num.DO_channels
+    mask = 2^(channels.DO_channels(ii).native_order) * ones(size(data.DO_raw));
+    data.DO_channels(ii, :) = (bitand(data.DO_raw, mask) > 0);
 end
 
 % Scale voltage levels appropriately.
-amplifier_data = 0.195 * (amplifier_data - 32768); % units = microvolts
-aux_input_data = 37.4e-6 * aux_input_data; % units = volts
-supply_voltage_data = 74.8e-6 * supply_voltage_data; % units = volts
-temp_sensor_data = temp_sensor_data / 100; % units = deg C
+data.AMP_channels = 0.195 * (data.AMP_channels - 32768); % units = microvolts
+data.AUX_channels = 37.4e-6 * data.AUX_channels; % units = volts
+data.VOLT_channels = 74.8e-6 * data.VOLT_channels; % units = volts
+data.TEMP_channels = data.TEMP_channels / 100; % units = deg C
 
 if (board_mode == 1)
-     board_adc_data = 152.59e-6 * (board_adc_data - 32768); % units = volts
+     data.ADC_channels = 152.59e-6 * (data.ADC_channels - 32768); % units = volts
 elseif (board_mode == 13) % Intan Recording Controller
-     board_adc_data = 312.5e-6 * (board_adc_data - 32768); % units = volts    
-else board_adc_data = 50.354e-6 * board_adc_data; % units = volts
+     data.ADC_channels = 312.5e-6 * (data.ADC_channels - 32768); % units = volts    
+else data.ADC_channels = 50.354e-6 * data.ADC_channels; % units = volts
 end
 
 % Check for gaps in timestamps.
@@ -497,13 +447,12 @@ t_temp_sensor = t_supply_voltage;
 % same notch filter to amplifier data here.  But don't do this for v3.0+ 
 % files (from Intan RHX software) because RHX saves notch-filtered data.
 if (notch_filter_frequency > 0 && data_file_main_version_number < 3)
-  for i=1:num_amplifier_channels
-      amplifier_data(i,:) = notch_filter(amplifier_data(i,:), ...
-                                         sample_rate, ...
-                                         notch_filter_frequency, 10);
+  for ii = 1:num.AMP_channels
+      data.AMP_channels(ii,:) = notch_filter(data.AMP_channels(ii,:), ...
+                                             sample_rate, ...
+                                             notch_filter_frequency, 10);
   end
 end
-
 
 % Now that we have the whole file we select the parts we need.
 % First we select the datastreams requested, then select the data range
@@ -511,131 +460,133 @@ end
 % the file actually. If something is requested, but not included in the
 % file, a warning is displayed in the commandline.
     
-if opts.nrstreamsrequested==0  % Nothing specified, all output requested
+error I_think_redundant
+
+if opts.n_streams_req == 0  % Nothing specified, all output requested
     % Output order:
     % amplifier channels => auxiliary channels => ADC channels => Digital
     % channels => volts => temperature
-    output = {'ampch', 1:size(amplifier_data,1), ...
-              'auxch', 1:size(aux_input_data,1), ...
-              'ADCch', 1:size(board_adc_data,1), ...
-              'DIGin', 1:size(board_dig_in_data,1), ...
-              'DIGout', 1:size(board_dig_out_data,1), ...
-              'volt', 'yes', ...
-              'tempch', 'yes' };
+    selected_output = {'ampch', 1:size(amplifier_data,1), ...
+                       'auxch', 1:size(aux_input_data,1), ...
+                       'ADCch', 1:size(board_adc_data,1), ...
+                       'DIGin', 1:size(board_dig_in_data,1), ...
+                       'DIGout', 1:size(board_dig_out_data,1), ...
+                       'volt', 'yes', ...
+                       'tempch', 'yes' };
 else
-    output = cell(0);
+    selected_output = cell(0);
     arg_named = @(x) ismember(varargin(1:2:end),x);
     if any(arg_named('ampch'))
-        output(1,end+(1:2)) = {'ampch', opts.channellist};
+        selected_output(1,end+(1:2)) = {'ampch', opts.do_AMP_channels};
     end
     if any(arg_named('auxch'))
-        output(1,end+(1:2)) = {'auxch', opts.do_aux};
+        selected_output(1,end+(1:2)) = {'auxch', opts.do_AUX_channels};
     end
     if any(arg_named('ADCch'))
-        output(1,end+(1:2)) = {'ADCch', opts.do_ADC_channels};
+        selected_output(1,end+(1:2)) = {'ADCch', opts.do_ADC_channels};
     end
     if any(arg_named('DIGin'))
-        output(1,end+(1:2)) = {'DIGin', opts.do_DI_channels};
+        selected_output(1,end+(1:2)) = {'DIGin', opts.do_DI_channels};
     end
     if any(arg_named('DIGout'))
-        output(1,end+(1:2)) = {'DIGout', opts.do_DO_channels};
+        selected_output(1,end+(1:2)) = {'DIGout', opts.do_DO_channels};
     end
     if any(arg_named('volt'))
-        output(1,end+(1:2)) = {'volt', opts.do_supply_volts};
+        selected_output(1,end+(1:2)) = {'volt', opts.do_VOLT_channels};
     end
     if any(arg_named('tempch'))
-        output(1,end+(1:2)) = {'tempch', opts.do_supply_volts};
+        selected_output(1,end+(1:2)) = {'tempch', opts.do_VOLT_channels};
     end
 end
 
-for arg=1:2:length(output)
-  switch (output{arg})
+for arg=1:2:length(selected_output)
+  switch (selected_output{arg})
     case 'ampch'
       if size(amplifier_data,1) > 0
-        amplifier_channels = amplifier_channels(1,output{arg+1});
-        amplifier_data = amplifier_data(output{arg+1},:);
+        amplifier_channels = amplifier_channels(1,selected_output{arg+1});
+        amplifier_data = amplifier_data(selected_output{arg+1},:);
         ts_amp = timeseries;
         ts_amp.name = 'ampch';
         ts_amp.time = t_amplifier;
         ts_amp.data = amplifier_data';
-        if opts.range ~=0
-            ts_amp = select_time(ts_amp,opts.range);
+        if opts.time_roi ~=0
+            ts_amp = select_time(ts_amp,opts.time_roi);
         end
         ts_amp.DataInfo.Units = 'uV';
         ts_amp.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_amp;
         varargout{arg+1} = amplifier_channels;
-      elseif opts.nrstreamsrequested > 0
+      elseif opts.n_streams_req > 0
         disp('WARNING: No amplifier channels found in file!')
       end
     case 'auxch'
       if size(aux_input_data,1) > 0
-        aux_input_channels = aux_input_channels(1,output{arg+1});
-        aux_input_data = aux_input_data(output{arg+1},:);
+        aux_input_channels = aux_input_channels(1,selected_output{arg+1});
+        aux_input_data = aux_input_data(selected_output{arg+1},:);
         ts_aux = timeseries;
         ts_aux.name = 'auxch';
         ts_aux.time = t_aux_input;
         ts_aux.data = aux_input_data';
-        if opts.range~=0
-            ts_aux = select_time(ts_aux,opts.range);
+        if opts.time_roi~=0
+            ts_aux = select_time(ts_aux,opts.time_roi);
         end
         ts_aux.DataInfo.Unit = 'uV';
         ts_aux.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_aux;
         varargout{arg+1} = aux_input_channels;
-      elseif opts.nrstreamsrequested > 0
+      elseif opts.n_streams_req > 0
         disp('WARNING: No auxiliary inputs found in file!')
       end
     case 'ADCch'
       if size(board_adc_data,1)>0
-        board_adc_channels = board_adc_channels(1,output{arg+1});
-        board_adc_data = board_adc_data(output{arg+1},:);
+        board_adc_channels = board_adc_channels(1,selected_output{arg+1});
+        board_adc_data = board_adc_data(selected_output{arg+1},:);
         ts_board_adc = timeseries;
         ts_board_adc.name = 'ADCch';
         ts_board_adc.time = t_board_adc;
         ts_board_adc.data = board_adc_data';
-        if opts.range ~=0
-            ts_board_adc = select_time(ts_board_adc,opts.range);
+        if opts.time_roi ~=0
+            ts_board_adc = select_time(ts_board_adc,opts.time_roi);
         end
         ts_board_adc.DataInfo.Unit = 'uV';
         ts_board_adc.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_board_adc;
         varargout{arg+1} = board_adc_channels;
-      elseif opts.nrstreamsrequested > 0
+      elseif opts.n_streams_req > 0
         disp('WARNING: No board ADC channels found in file!');
       end
     case 'DIGin'
       if size(board_dig_in_data,1)>0
-        board_dig_in_channels = board_dig_in_channels(1,output{arg+1});
-        board_dig_in_data = board_dig_in_data(output{arg+1},:);
+        board_dig_in_channels = board_dig_in_channels(1,selected_output{arg+1});
+        board_dig_in_data = board_dig_in_data(selected_output{arg+1},:);
         ts_dig_in = timeseries;
         ts_dig_in.name = 'DIGin';
         ts_dig_in.time = t_amplifier;
         ts_dig_in.data = board_dig_in_data';
-        if opts.range ~=0
-            ts_dig_in = select_time(ts_dig_in,opts.range);
+        if opts.time_roi ~=0
+            ts_dig_in = select_time(ts_dig_in,opts.time_roi);
         end
         ts_dig_in.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_dig_in;
         varargout{arg+1} = board_dig_in_channels;
-      elseif opts.nrstreamsrequested > 0
+      elseif opts.n_streams_req > 0
         disp('WARNING: No board digital in channels found in file!');
       end
     case 'DIGout'
       if size(board_dig_out_data,1)>0
-        board_dig_out_channels = board_dig_out_channels(1,output{arg+1});
-        board_dig_out_data = board_dig_out_data(output{arg+1},:);
+        board_dig_out_channels = board_dig_out_channels(1,selected_output{arg+1});
+        board_dig_out_data = board_dig_out_data(selected_output{arg+1},:);
         ts_dig_out = timeseries;
         ts_dig_out.name = 'DIGout';
         ts_dig_out.time = t_amplifier;
         ts_dig_out.data = board_dig_out_data';
-        if opts.range ~=0
-            ts_dig_out = select_time(ts_dig_out,opts.range);
+        if opts.time_roi ~=0
+            ts_dig_out = select_time(ts_dig_out,opts.time_roi);
         end
         ts_dig_out.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_dig_out;
         varargout{arg+1} = board_dig_out_channels;
-      elseif opts.nrstreamsrequested > 0
+      elseif opts.n_streams_req > 0
         disp('WARNING: No board digital out channels found in file!');
       end
     case 'volt'
@@ -644,13 +595,13 @@ for arg=1:2:length(output)
         ts_volt.name = 'supply_voltage';
         ts_volt.time = t_supply_voltage;
         ts_volt.data = supply_voltage_data';
-        if opts.range ~=0
-            ts_volt = select_time(ts_volt,opts.range);
+        if opts.time_roi ~=0
+            ts_volt = select_time(ts_volt,opts.time_roi);
         end
         ts_volt.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_volt;
         varargout{arg+1} = supply_voltage_channels;
-      elseif opts.nrstreamsrequested > 0
+      elseif opts.n_streams_req > 0
         disp('WARNING: No supply voltage data found in file!');
       end
     case 'tempch'
@@ -659,13 +610,13 @@ for arg=1:2:length(output)
         ts_temp.name = 'temperature';
         ts_temp.time = t_temp_sensor;
         ts_temp.data = temp_sensor_data';
-        if opts.range ~= 0
-            ts_temp = select_time(ts_temp,opts.range);
+        if opts.time_roi ~= 0
+            ts_temp = select_time(ts_temp,opts.time_roi);
         end
         ts_temp.TimeInfo.Units = 'seconds';
         varargout{arg} = ts_temp;
         varargout{arg+1} = '1';
-      elseif opts.nrstreamsrequested > 0
+      elseif opts.n_streams_req > 0
         disp('WARNING: No temperature data found in file!');
       end
   end
@@ -749,7 +700,7 @@ out(2) = in(2);
 % (If filtering a continuous data stream, change out(1) and out(2) to the
 %  previous final two values of out.)
 
-% Run filter
+% Run filter`
 for i=3:L
     out(i) = (a*b2*in(i-2) + a*b1*in(i-1) + a*b0*in(i) - a2*out(i-2) - a1*out(i-1))/a0;
 end

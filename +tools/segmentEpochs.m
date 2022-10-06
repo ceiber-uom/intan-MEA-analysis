@@ -1,7 +1,7 @@
 
 
-function [epochs,opts] = segmentEpochs( trig, varargin )
-% [epochs,opts] = segmentEpochs( trigger, [data], ... )
+function [epochs,opts] = segmentEpochs( data, varargin )
+% [epochs,opts] = segmentEpochs( [data], [trigger], ... )
 % 
 % Options:
 % 
@@ -22,19 +22,31 @@ function [epochs,opts] = segmentEpochs( trig, varargin )
 named = @(n) strncmpi(varargin,n,length(n));
 get_ = @(v) varargin{find(named(v))+1};
 
-if isstruct( trig )
-  data = trig; 
-  if isfield(trig,'trigger'), trig = trig.trigger; noun = '.trigger';
-  elseif isfield(trig,'ADC'), trig = trig.ADC;     noun = '.ADC';
+verbose = ~any(named('-v')); 
+
+if nargin == 0
+  if evalin('caller','exist("intanData","var")')
+    data = evalin('caller','intanData');
+    fprintf('Please call tools.segmentEpochs( intanData )')
   end
-else noun = ''; 
+else error('Not enough input arguments.')
 end
 
-if isstruct( trig )
-     assert( isfield(trig,'Data') && isfield(trig,'Time'), ...
-         'expected data%s as a timeseries object', noun)
-else assert( isa(trig,'timeseries'), ...
-         'expected data%s as a timeseries object', noun)
+noun = ''; 
+
+if isa(data,'timeseries'), trig = data; data = []; 
+elseif ~isstruct(data) 
+    error('Expected an intanData object (as returned by tools.readIntan)')
+else 
+  if isfield(data,'trigger'), trig = data.trigger; noun = '.trigger';
+  elseif isfield(data,'ADC'), trig = data.ADC;     noun = '.ADC';
+  elseif isfield(data,'Data') && isfield(data,'Time') 
+                              trig = data; data = []; 
+  end
+end
+
+if verbose
+    fprintf('segmenting epochs based on photocell trigger in data%s ... \n', noun)
 end
 
 %% Parse options
@@ -170,9 +182,41 @@ epochs.units.phase = 'radians';
 epochs.units.average = [trig.Name ' ' trig.DataInfo.Units];
 
 %% 
-
-if any(named('-d')), data = get_('-d'); end
+if any(named('-d')), data = get_('-d'); 
+elseif isempty(data)
+elseif ~exist('data','var') && nargin > 1 && isstruct(varargin{1})
+    data = varargin{1};
+end
 if ~exist('data','var'), return, end
+
+data.epochs = epochs;
+data.config.epochs = opts; 
+
+data_fields = fieldnames(data); 
+all_upper = @(s) all(ismember(s,['A':'Z' '_'])); 
+data_fields = data_fields(cellfun(all_upper,data_fields));
+
+for channel_type = data_fields
+    
+    
+
+
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+return
 
 error todo_apply_epoch_segmentation_to_data
 

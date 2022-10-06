@@ -506,7 +506,7 @@ for ty = channel_types
         otherwise,   this.DataInfo.Units = 'V';
     end
 
-    output.(upper(ty{1]})) = this;
+    output.(upper(ty{1})) = this;
 end
 
 if nargout == 0

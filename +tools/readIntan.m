@@ -1,4 +1,4 @@
-function output = readIntanRHD(filename, varargin)
+function output = readIntan(filename, varargin)
 % Function to read intan .RHD files. Adapted from read_Intan_RHD2000_file.m
 % Version 3.0 as can be downloaded from the manufacuter's website: 
 %         http://www.intantech.com/downloads.html
@@ -65,6 +65,7 @@ end
 opts.n_streams_req = 0;
 opts.notchfreq = 0;
 opts.time_roi = [];
+opts.export_ts = any(named('-timeseries')) || any(named('-ts'));
 
 % opts.do_AMP_channels = 0;
 % opts.do_AUX_channels = 0;
@@ -490,7 +491,10 @@ for ty = channel_types
 
     output.config.(chan_(ty)) = channels.(chan_(ty))(sel);
 
-    this = timeseries;
+    if opts.export_ts, this = timeseries;
+    else this = struct; 
+    end
+
     this.name = upper(ty{1});
     this.time = data.(time_(ty));
     this.data = data.(chan_(ty))(sel,:)';
@@ -520,14 +524,15 @@ function new = select_time(old,time_range)
 % Enter a timeseries and a range.
 % Returns a new timeseries according to range.
 % Range should be a 1x2 matrix with [start end]
-new = timeseries;
-data = old.data(old.time>min(time_range),:);
-time = old.time(old.time>min(time_range));
-data = data(time<max(time_range),:);
-time = time(time<min(time_range));
-new.data = data;
-new.time = time;
+if isstruct(old), new = old([]);
+else new = timeseries;
+end
+
+sel = old.time >= min(time_range) & old.time <= max(time_range); 
+
 new.name = old.name;
+new.time = old.time(sel);
+new.data = old.data(sel,:);
 
 return
 

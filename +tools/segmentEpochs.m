@@ -28,12 +28,15 @@ if nargin == 0
   if evalin('caller','exist("intanData","var")')
     data = evalin('caller','intanData');
     fprintf('Please call tools.segmentEpochs( intanData )')
+  else error('Not enough input arguments.')
   end
-else error('Not enough input arguments.')
+end
+
+if any(named('-epochs')) % apply epoch filter to existing data
+    data = apply_segmentation(data, get_('-epochs'));
 end
 
 noun = ''; 
-
 if isa(data,'timeseries'), trig = data; data = []; 
 elseif ~isstruct(data) 
     error('Expected an intanData object (as returned by tools.readIntan)')
@@ -44,6 +47,8 @@ else
                               trig = data; data = []; 
   end
 end
+
+
 
 if verbose
     fprintf('segmenting epochs based on photocell trigger in data%s ... \n', noun)
@@ -191,6 +196,12 @@ if ~exist('data','var'), return, end
 
 data.epochs = epochs;
 data.config.epochs = opts; 
+data = apply_segmentation(data, epochs);
+
+return
+
+
+function data = apply_segmentation(data, epochs)
 
 data_fields = fieldnames(data); 
 all_upper = @(s) all(ismember(s,['A':'Z' '_'])); 
@@ -200,24 +211,10 @@ for channel_type = data_fields
     
     
 
-
+    error mk_segmentation
 
 end
 
 
 
-
-
-
-
-
-
-
-
-
-
 return
-
-error todo_apply_epoch_segmentation_to_data
-
-

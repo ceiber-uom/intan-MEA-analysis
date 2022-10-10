@@ -1,10 +1,15 @@
 
 clear
-list = dir('../05*/*.rhd');
+list = dir('../*/*.rhd');
 
 p_ = @(x) [x.folder filesep x.name]; % path expander
 
 data = tools.readIntan(p_(list(1)));
+
+%%
+
+plots.epochs(data);
+
 
 %% Demonstrate the power of the line noise filter
 

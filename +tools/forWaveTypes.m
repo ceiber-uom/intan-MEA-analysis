@@ -34,8 +34,11 @@ if ~any(do_type), do_type(1) = true; end
 
 for ty = types(do_type)
   if ~isfield(data,ty{1}), continue, end
-  [data.(ty{1}),out{:}] = fun(data.(ty{1}));
 
+  if nargout == 0, fun(data.(ty{1}))
+  else [data.(ty{1}),out{:}] = fun(data.(ty{1}));
+  end
+  
   if sum(do_type) == 1, varargout = out;
   else
     for nn = 1:numel(out)

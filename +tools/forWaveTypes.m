@@ -7,6 +7,14 @@ function [data, varargout] = forWaveTypes( data, fun, varargin )
 % 
 % types = {'AMP','AUX','VOLT','ADC','DI','DO','TEMP'}; (if not specified)
 % 
+% Example Usage: 
+% if isfield(data,'config')
+%    this = @(d) tools.removeCommonMode(d, varargin{:});
+%   [data, info] = tools.forWaveTypes(data, this, varargin{:});
+%    data.config.commonMode = info;
+%    return
+% end
+% 
 % v0.1 - 10 October 2022 - CE
 
 named = @(s) strncmpi(s,varargin,numel(s));
@@ -35,7 +43,3 @@ for ty = types(do_type)
     end
   end
 end
-
-  
-
-

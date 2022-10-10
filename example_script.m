@@ -24,8 +24,11 @@ plot(data.AMP.time, data.AMP.data(:,24));
 %% 
 
 data = tools.removeCommonMode(data);
-
 data = tools.segmentEpochs(data);
+
+%%
+
+plots.epochs(data);
 
 %%
 

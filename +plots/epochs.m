@@ -80,12 +80,6 @@ set(h(blc),'XTickMode','auto');
 set(h,'LineWidth',0.8)
 
 %%
-
-
-
-
-
-
 return
 
 

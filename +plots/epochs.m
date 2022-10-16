@@ -1,13 +1,22 @@
 
-
 function epochs (data, varargin)
 % function plots.epochs( data, ... )
 %
+% Basic plot of recorded signal waveform. If epoched data is supplied, one
+% trace per epoch. 
+% 
 % Options:
-% -chan [c1 c2 c3 ...] % set channels 
-% -map  [c1 c2; c3 c4; ...] % Set channels and arrangement of channels
-% -sp   [rows cols]   % set subplot size (not needed if -map used)
-%
+% -chan [c1 c2 c3 ...] Set channels 
+% -map  [c1 c2;  ... ] Set channels and arrangement of channels
+% -rc   [rows cols]    Set subplot size (# rows / columns)
+% -roi [t0 t1]         Set beginning and end of plotting window
+% -dt  [x]             Set decimation factor for plotting. Otherwise, this
+%                       is automatically determined based on the requested
+%                       number of channels / samples. Integer only. 
+% -dy [y]              Set vertical offset (as multiple of wave delta-z) 
+% -ticks               Toggle default ticks behaviour (ticks enabled for
+%                       6 or fewer channels, disabled otherwise)
+% -pass [pass_ids]     Select passes to plot (for expoched data), 
 % if any(named('-wave')) || ~isfield(...)
 % end
 
@@ -38,12 +47,20 @@ clf
 
 time = data.time(t_roi); 
 dsf = ceil(size(data.data,2)^0.5 * length(time)^0.1);
-if any(named('-dt')), dsf = get('-dt'); end
+if any(named('-dt')), dsf = get('-dt'); 
+  if dsf < 1, dsf = ceil(1/dsf); 
+  else dsf = round(dsf); 
+  end
+end
 time = time(1:dsf:end);
 
 dy = median(max(max(data.data))); 
 if any(named('-dy')), dy = dy * get_('-dy'); 
 % else dy = dy;
+end
+
+if any(named('-pass')), passes = get_('-pass');
+else passes = true(size(data.data,3),1);
 end
 
 C = lines(7); 
@@ -53,7 +70,7 @@ for pp = 1:numel(channel_map)
     if channel_map(pp) == 0, continue, end
     subplot(subplot_nxy{:}, pp), cc = channel_map(pp); 
 
-    y = permute(data.data(t_roi,cc,:), [1 3 2]);
+    y = permute(data.data(t_roi,cc,passes), [1 3 2]);
     y = y(1:dsf:end,:) + dy*(0:size(y,2)-1);
 
     plot(time, y,'Color',C(1,:)); % ,'Clipping','off')

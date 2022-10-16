@@ -47,8 +47,6 @@ else
   end
 end
 
-
-
 if verbose
     fprintf('segmenting epochs based on photocell trigger in data%s ... \n', noun)
 end
@@ -189,8 +187,7 @@ epochs.units.average = [trig.name ' ' trig.DataInfo.Units];
 
 %% 
 if any(named('-d')), data = get_('-d'); 
-elseif isempty(data)
-elseif ~exist('data','var') && nargin > 1 && isstruct(varargin{1})
+elseif isempty(data) && nargin > 1 && isstruct(varargin{1})
     data = varargin{1};
 end
 if ~exist('data','var'), return, end

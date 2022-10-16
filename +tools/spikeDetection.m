@@ -8,8 +8,6 @@
 
 
 
-
-
 classdef SpikeDetect
 
  properties opts data, end
@@ -19,25 +17,25 @@ classdef SpikeDetect
 
  % Constructor
  function obj = SpikeDetect(varargin)
- obj.opts.algorithm = @threshold_RMS;
- obj.opts.spikeWindow = (-8:8)';
- obj.opts.threshold = 3.5;
- obj.opts.minInterval = 0.001;
- obj.opts.preprocesing = {@preprocesser_CommonMode};
- obj.opts.saveWaves = 'raw';
- obj.opts.commonMode = true;
- obj.opts.display = false;
- obj = applyVargs2Opts (obj, varargin);
+     obj.opts.algorithm = @threshold_RMS;
+     obj.opts.spikeWindow = (-8:8)';
+     obj.opts.threshold = 3.5;
+     obj.opts.minInterval = 0.001;
+     obj.opts.preprocesing = {@preprocesser_CommonMode};
+     obj.opts.saveWaves = 'raw';
+     obj.opts.commonMode = true;
+     obj.opts.display = false;
+     obj = applyVargs2Opts (obj, varargin);
  end
 
- function obj = Detect(obj)
- if isempty(obj.data), obj = obj.Load(); end
- if ~isfield(obj.data.settings, 'samplingRate'),
- obj.data.settings.samplingRate = obj.data.settings.General.samplingRate;
- end
+function obj = Detect(obj)
+    if isempty(obj.data), obj = obj.Load(); end
+    if ~isfield(obj.data.settings, 'samplingRate'),
+     obj.data.settings.samplingRate = obj.data.settings.General.samplingRate;
+    end
 
  if isempty(obj.rawEpochs), epochs = obj.data.epochs;
- obj.rawEpochs = epochs;
+      obj.rawEpochs = epochs;
  else epochs = obj.rawEpochs;
  end
  obj.data = rmfield(obj.data,'epochs');
@@ -233,9 +231,8 @@ function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
  disp(['CWT: chan ' num2str(c)]);
  end
  toc
-Appendix 3: MATLAB code for spike-detection framework and common-mode subtraction
-212
-function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
+
+    function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
 
  if ~exist('epochs','var'), autoThresholdScript, return, end % hidden; similar to that of TEO
  if ~isfield(obj.opts, 'AnsariBradlyTail'), obj.opts.AnsariBradlyTail = 'Right'; end

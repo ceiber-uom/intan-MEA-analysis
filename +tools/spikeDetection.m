@@ -5,15 +5,18 @@
 % TODO implement this from my old Ph.D. code.
 
 
+function data = spikeDetection(data)
 
 
 
-classdef SpikeDetect
 
- properties opts data, end
- properties(Hidden) indices rawEpochs filename filepath, end
 
- methods
+% classdef SpikeDetect
+
+%  properties opts data, end
+%  properties(Hidden) indices rawEpochs filename filepath, end
+% 
+%  methods
 
  % Constructor
  function obj = SpikeDetect(varargin)
@@ -170,7 +173,10 @@ function indices = threshold_RMS(wave, chan, data, opts)
  T = T * data.rmsValues(chan);
  W = opts.minInterval * data.settings.samplingRate;
  indices = peakseek(abs(wave), W, T);
-function indices = threshold_ABS(wave, chan, data, opts)
+
+    
+    
+    function indices = threshold_ABS(wave, chan, data, opts)
  if length(opts.threshold) >= chan, T = opts.threshold(chan);
  else T = opts.threshold;
  end
@@ -178,36 +184,11 @@ function indices = threshold_ABS(wave, chan, data, opts)
  indices = peakseek(abs(wave), W, T);
 Preprocessers (passed as function handles):
 % function [epochs, obj] = preprocess_ ... ( epochs, obj )
-function [epochs, obj] = preprocesser_TeagerEnergy(epochs, obj )
 
- if ~exist('epochs','var'),
- S = SpikeDetect;
- S.opts.preprocesing{end+1} = @preprocesser_TeagerEnergy;
- S.opts.threshold = 1.2; S = S.Detect; S.Save; return
- end
- if isfield(obj.opts,'TEO_smoothing'), sf = obj.opts.TEO_smoothing; else sf = 1; end
- if isfield(obj.opts,'TEO_kernel'), window = obj.opts.TEO_kernel;
- else window = diag(rot90(pascal(sf))); window = window/sum(window); obj.opts.TEO_smoothing = sf;
- end
- if ~isfield(obj.opts,'TEO_size'), obj.opts.TEO_size = 1; end, dt = obj.opts.TEO_size;
+    
 
- disp('Applying Teager energy operator')
- if size(epochs,2) > 1600 % for extra-large files, break into chunks
- tic;
- epochs = double(epochs);
- for c = 1:size(epochs,3)
- epochs(:,:,c) = epochs(:,:,c).^2 - circshift(epochs(:,:,c), [dt 0]) .* ...
- circshift(epochs(:,:,c), [-dt 0]);
- if length(window) > 1, epochs(:,:,c) = convn(epochs(:,:,c),window,'same'); end
- epochs(:,:,c) = sqrt(abs(double(epochs(:,:,c))));
- if toc > 5, disp(['TEO: chan ' num2str(c)]); tic; end
- end
- toc
- else
- epochs = epochs.^2 - circshift(epochs, [dt 0 0]) .* circshift(epochs, [-dt 0 0]);
- if length(window) > 1, epochs = convn(epochs,window,'same'); end
- epochs = sqrt(abs(double(epochs)));
- end
+
+
 function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
 
  if ~exist('epochs','var'),
@@ -232,7 +213,9 @@ function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
  end
  toc
 
-    function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
+
+
+ function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
 
  if ~exist('epochs','var'), autoThresholdScript, return, end % hidden; similar to that of TEO
  if ~isfield(obj.opts, 'AnsariBradlyTail'), obj.opts.AnsariBradlyTail = 'Right'; end
@@ -309,18 +292,5 @@ function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
  obj.opts.threshold = nansum(T.*P)/nansum(P);
  disp(['p-Weighted threshold = ' num2str(obj.opts.threshold) 'xRMS'])
 
-Appendix 3: MATLAB code for spike-detection framework and common-mode subtraction
-213
-function [epochs, obj] = preprocess_CommonMode( epochs, obj )
- if isfield(obj.data.settings, 'CommonMode')
- if isfield(obj.data.settings.CommonMode, 'means')
- M = obj.data.settings.CommonMode.means;
- else
- M = obj.data.commonMode;
- end
 
- disp('Subtracting common-mode signal from recordings')
- for ci = 1:size(epochs,3)
- epochs(:,:,ci) = epochs(:,:,ci) - obj.data.settings.CommonMode.weights(ci) * M;
- end
- end
+

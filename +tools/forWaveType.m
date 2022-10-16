@@ -1,11 +1,14 @@
 
 
-function [data, varargout] = forWaveTypes( data, fun, varargin )
+function [data, varargout] = forWaveType( data, fun, varargin )
 % [data, ...] = tools.forWaveTypes( data, function, [wave_types], ... )
-% Apply FUNCTION to each specified wave_type in DATA. This was a common
-% code pattern to enable top-level function calls on the intanData object.
 % 
-% types = {'AMP','AUX','VOLT','ADC','DI','DO','TEMP'}; (if not specified)
+% Apply FUNCTION to a specified wave_type in DATA. This was a common code
+%   pattern to enable top-level function calls on the intanData object.
+%   By default, if the user did not specify one of the following, FUNCTION
+%   is applied to data.AMP 
+% 
+% types = .AMP, .AUX, .VOLT, .ADC, .DI, .DO, .TEMP
 % 
 % Example Usage: 
 % if isfield(data,'config')
@@ -30,7 +33,7 @@ out = varargout;
 varargout = cellfun(@(x) struct, varargout,'unif',0);
 
 do_type = cellfun(@(t) any(named(t)), types); 
-if ~any(do_type), do_type(1) = true; end
+if ~any(do_type), do_type(1) = true; end % by default 
 
 for ty = types(do_type)
   if ~isfield(data,ty{1}), continue, end

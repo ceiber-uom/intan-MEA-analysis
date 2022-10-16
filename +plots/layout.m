@@ -13,6 +13,9 @@ function map = layout(data, varargin)
 % -map  [c1 c2; c3 c4; ...] % Set channels and arrangement of channels
 % -rc   [rows cols]   % set subplot size (not needed if -map used)
 
+named = @(s) strncmpi(s,varargin,numel(s));
+get_ = @(v) varargin{find(named(v))+1};
+
 nC = size(data.data,2);
 if nC == 64
      map = [ 1  2  3  4  5  6  7  8;

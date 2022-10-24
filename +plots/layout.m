@@ -16,7 +16,11 @@ function map = layout(data, varargin)
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
-nC = size(data.data,2);
+if isfield(data,'data'),        nC = size(data.data,2);
+elseif isfield(data,'channel'), nC = max(data.channel(:));
+else error('unable to determine channels')
+end
+
 if nC == 64
      map = [ 1  2  3  4  5  6  7  8;
              9 10 11 12 13 14 15 16;
@@ -40,6 +44,7 @@ if any(named('-rc')), sprc = get_('-rc');
 elseif min(size(map)) == 1 && ~any(named('-map'))
   sprc = ceil(sqrt(numel(map))); 
   sprc(2) = ceil(numel(map) / sprc);
+  map(end+1 : prod(sprc)) = 0; 
 else sprc = []; 
 end
 

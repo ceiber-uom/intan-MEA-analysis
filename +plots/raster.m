@@ -1,19 +1,17 @@
 
-function epochs (data, varargin)
-% function plots.epochs( data, ... )
+function raster (data, varargin)
+% function plots.raster( data, ... )
 %
-% Basic plot of recorded signal waveform. If epoched data is supplied, one
-% trace per epoch. 
+% Basic raster plot of recorded spike times. 
+% If epoched spiketime data is supplied, one row per epoch and one axis
+% per channel, otherwise plot all on a single axis.
+% 
 % 
 % Options:
 % -chan [c1 c2 c3 ...] Set channels 
 % -map  [c1 c2;  ... ] Set channels and arrangement of channels
 % -rc   [rows cols]    Set subplot size (# rows / columns)
 % -roi [t0 t1]         Set beginning and end of plotting window
-% -dt  [x]             Set decimation factor for plotting. Otherwise, this
-%                       is automatically determined based on the requested
-%                       number of channels / samples. Integer only. 
-% -dy [y]              Set vertical offset (as multiple of wave delta-z) 
 % -ticks               Toggle default ticks behaviour (ticks enabled for
 %                       6 or fewer channels, disabled otherwise)
 % -pass [pass_ids]     Select passes to plot (for expoched data), 
@@ -24,7 +22,7 @@ named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
 if isfield(data,'config')
-   this = @(d) plots.epochs(d, varargin{:});
+   this = @(d) plots.raster(d, varargin{:});
    tools.forWaveType(data, this, varargin{:});
    return
 end
@@ -39,30 +37,37 @@ if any(named('-roi')), t_roi = get('-roi');
 else t_roi = true(size(data.time)); 
 end
 
-subplot_nxy = num2cell(size(channel_map));
+u_max = max(data.unit(:));
 
-opts.ticks = (numel(channel_map) > 6) == any(named('-ti'));
 %%
+if ~isfield(data,'epoch') || ~any(named('-no-e'))
+    %% Basic raster plot
+    
+    cla reset
+    scatter(data.time(t_roi), data.channel(t_roi), [], ...
+            data.unit(t_roi), '.')
+    colormap([.5 .5 .5; lines(u_max)])
+    caxis([0 u_max])
+    plots.tidy
+
+    xlabel('time, s'), ylabel('channel ID')
+    ylabel(colorbar,'unit ID')
+    return
+end
+
+%% One-per-channel raster plots
+
+if any(named('-pass')), pass_ok = get_('-pass');
+else pass_ok = true(size(data.data,3),1);
+end
+if ~islogical(pass_ok)
+    pass_ok = ismember(1:max(data.pass), pass_ok); 
+end
+
+subplot_nxy = num2cell(size(channel_map));
+opts.ticks = (numel(channel_map) > 6) == any(named('-ti'));
+
 clf
-
-time = data.time(t_roi); 
-dsf = ceil(size(data.data,2)^0.5 * length(time)^0.1);
-if any(named('-dt')), dsf = get('-dt'); 
-  if dsf < 1, dsf = ceil(1/dsf); 
-  else dsf = round(dsf); 
-  end
-end
-time = time(1:dsf:end);
-
-dy = median(max(max(data.data))); 
-if any(named('-dy')), dy = dy * get_('-dy'); 
-% else dy = dy;
-end
-
-if any(named('-pass')), passes = get_('-pass');
-else passes = true(size(data.data,3),1);
-end
-
 C = lines(7); 
 
 for pp = 1:numel(channel_map)
@@ -70,13 +75,14 @@ for pp = 1:numel(channel_map)
     if channel_map(pp) == 0, continue, end
     subplot(subplot_nxy{:}, pp), cc = channel_map(pp); 
 
-    y = permute(data.data(t_roi,cc,passes), [1 3 2]);
-    y = y(1:dsf:end,:) + dy*(0:size(y,2)-1);
+    ok = (t_roi & data.channel == cc & pass_ok(data.pass)); 
 
-    plot(time, y,'Color',C(1,:)); % ,'Clipping','off')
-
-    xlim(time([1 end])),
+    scatter(data.time(ok), data.pass(ok), [], ...
+            data.unit(ok), '.')
+    colormap([.5 .5 .5; lines(u_max)])
+    caxis([0 u_max])
     plots.tidy
+    
     p = get(gca,'Position'); 
     set(gca,'Position',p + [-1 -1 2 2].*p([3 4 3 4])/10)
     if ~opts.ticks, set(gca,'XTick',[],'YTick',[]); end

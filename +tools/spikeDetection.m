@@ -1,9 +1,7 @@
 
 % function data = spikeDetection( data, varargin )
 
-
 % TODO implement this from my old Ph.D. code.
-
 
 function data = spikeDetection(data)
 
@@ -81,16 +79,17 @@ function obj = Detect(obj)
  'params', 'settings', 'rmsValues', 'tags');
  disp(['Results saved to file ' strrep(obj.filename,'-epochs','-spikes')]);
  end
+ 
  function t = times(obj, varargin)
  % --- 14 lines of code hidden ---
  % Code is same as “Output” except only spikeTimes are returned
  end
-Appendix 3: MATLAB code for spike-detection framework and common-mode subtraction
-210
+
  function s = shapes(obj, varargin)
  % --- 25 lines of code hidden ---
  % Code is same as “Output” except only spikeShapes are returned
  end
+
  function [spikeCounts,spikeTimes,spikeShapes] = Output(obj, varargin)
 
  obj.opts.spikeWindow = obj.opts.spikeWindow(:); % convert to column vector
@@ -133,39 +132,18 @@ Appendix 3: MATLAB code for spike-detection framework and common-mode subtractio
  disp(['Loading ' obj.filename])
  obj.data = load([obj.filepath obj.filename]);
  end
+ 
  % property access methods
  function re = raw(obj), re = obj.rawEpochs; end
  function fn = name(obj), fn = obj.filename; end
  function fp = path(obj), fp = obj.filepath; end
  function obj = rename(obj, fullname)
- [fn, fp] = strtok(fliplr(fullname),'\');
- obj.filename = fliplr(fn);
- obj.filepath = fliplr(fp);
+   [fn, fp] = strtok(fliplr(fullname),'\');
+   obj.filename = fliplr(fn);
+   obj.filepath = fliplr(fp);
  end
- end % methods block
 
- methods (Static)
-
- function Run(varargin)
-
- [fnames, fpath] = uigetfile({'*epochs.mat'},'MultiSelect', 'on');
-
- if fpath == 0, return, end
- if ~iscell(fnames), fnames = {fnames}; end
- base = SpikeDetect(varargin{:});
-
- for i = 1:length(fnames)
-
- sd = base.Load([fpath fnames{i}]);
- sd = sd.Detect();
- sd.Save();
- end
- end
- end % methods block
-end % classdef; hidden methods block for parsing input arguments to structure not shown
-Appendix 3: MATLAB code for spike-detection framework and common-mode subtraction
-211
-Threshold crossing detector variants:
+% Threshold crossing detector variants:
 function indices = threshold_RMS(wave, chan, data, opts)
  if length(opts.threshold) >= chan, T = opts.threshold(chan);
  else T = opts.threshold;
@@ -176,52 +154,50 @@ function indices = threshold_RMS(wave, chan, data, opts)
 
     
     
-    function indices = threshold_ABS(wave, chan, data, opts)
+ function indices = threshold_ABS(wave, chan, data, opts)
  if length(opts.threshold) >= chan, T = opts.threshold(chan);
  else T = opts.threshold;
  end
  W = opts.minInterval * data.settings.General.samplingRate;
  indices = peakseek(abs(wave), W, T);
-Preprocessers (passed as function handles):
+
+%% Preprocessers (passed as function handles):
 % function [epochs, obj] = preprocess_ ... ( epochs, obj )
 
     
 
 
-
-function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
-
- if ~exist('epochs','var'),
- S = SpikeDetect;
- S.opts.preprocesing{end+1} = @preprocesser_Wavelets;
- S.opts.threshold = 1.4; S = S.Detect; S.Save; return,
- end
- if ~isfield(obj.opts,'CWT_wavelet'), obj.opts.CWT_wavelet = 'Bior 1.3'; end
- if ~isfield(obj.opts,'CWT_scales'), obj.opts.CWT_scales = unique(round(logspace(0,1.5,20))); end
- if ~isfield(obj.opts,'CWT_reject'), obj.opts.CWT_reject = 0; end
- if ~isfield(obj.opts,'CWT_reduce'), obj.opts.CWT_reduce = @(x) geomean(abs(x)); end
- disp('Applying Continuous Wavelet Transform')
- tic
- cwr = obj.opts.CWT_reject;
- for c = 1:size(epochs,3)
- for r = 1:size(epochs,2)
- cwt_epoch = cwt(epochs(:,r,c),obj.opts.CWT_scales, obj.opts.CWT_wavelet);
- if cwr > 0, cwt_epoch(abs(cwt_epoch) < cwr) = 0; end
- epochs(:,r,c) = obj.opts.CWT_reduce(cwt_epoch);
- end
- disp(['CWT: chan ' num2str(c)]);
- end
- toc
+% function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
+% 
+%  if ~isfield(obj.opts,'CWT_wavelet'), obj.opts.CWT_wavelet = 'Bior 1.3'; end
+%  if ~isfield(obj.opts,'CWT_scales'), obj.opts.CWT_scales = unique(round(logspace(0,1.5,20))); end
+%  if ~isfield(obj.opts,'CWT_reject'), obj.opts.CWT_reject = 0; end
+%  if ~isfield(obj.opts,'CWT_reduce'), obj.opts.CWT_reduce = @(x) geomean(abs(x)); end
+%  disp('Applying Continuous Wavelet Transform')
+%  tic
+%  cwr = obj.opts.CWT_reject;
+%  for c = 1:size(epochs,3)
+%  for r = 1:size(epochs,2)
+%  cwt_epoch = cwt(epochs(:,r,c),obj.opts.CWT_scales, obj.opts.CWT_wavelet);
+%  if cwr > 0, cwt_epoch(abs(cwt_epoch) < cwr) = 0; end
+%  epochs(:,r,c) = obj.opts.CWT_reduce(cwt_epoch);
+%  end
+%  disp(['CWT: chan ' num2str(c)]);
+%  end
+%  toc
 
 
 
- function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
+function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
 
- if ~exist('epochs','var'), autoThresholdScript, return, end % hidden; similar to that of TEO
- if ~isfield(obj.opts, 'AnsariBradlyTail'), obj.opts.AnsariBradlyTail = 'Right'; end
- if ~isfield(obj.opts, 'AnsariBradlyXform'),
- obj.opts.AnsariBradlyXform = @(p) sqrt(-log10(p));
- end
+
+    
+if ~isfield(obj.opts, 'AnsariBradlyTail'), 
+     obj.opts.AnsariBradlyTail = 'Right'; end
+end
+if ~isfield(obj.opts, 'AnsariBradlyXform'),
+     obj.opts.AnsariBradlyXform = @(p) sqrt(-log10(p));
+end
 
  if ~isfield(obj.opts, 'targetSpikerate'), obj.opts.targetSpikerate = 10; end % spikes / s
  targetSpikes = obj.opts.targetSpikerate*numel(epochs(:,:,1))/obj.data.settings.samplingRate;
@@ -245,7 +221,6 @@ function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
  for ci = 1:size(epochs,3)
 
  obj.opts.threshold(ci) = 1;
-
  if max(max(epochs(:,:,ci))) == 0, continue, end
  wave = epochs(:,:,ci);
  wave = wave(:);

@@ -6,7 +6,6 @@ function raster (data, varargin)
 % If epoched spiketime data is supplied, one row per epoch and one axis
 % per channel, otherwise plot all on a single axis.
 % 
-% 
 % Options:
 % -chan [c1 c2 c3 ...] Set channels 
 % -map  [c1 c2;  ... ] Set channels and arrangement of channels
@@ -15,6 +14,8 @@ function raster (data, varargin)
 % -ticks               Toggle default ticks behaviour (ticks enabled for
 %                       6 or fewer channels, disabled otherwise)
 % -pass [pass_ids]     Select passes to plot (for expoched data), 
+% -no-epochs           Plot all spikes on a single axes, time vs. channel
+% 
 % if any(named('-wave')) || ~isfield(...)
 % end
 
@@ -58,6 +59,9 @@ end
 %% One-per-channel raster plots
 
 if any(named('-pass')), pass_ok = get_('-pass');
+elseif ~isfield(data,'pass')
+     data.pass = ones(size(data.time));
+     pass_ok = true;
 else pass_ok = true(size(data.data,3),1);
 end
 if ~islogical(pass_ok)
@@ -67,15 +71,18 @@ end
 subplot_nxy = num2cell(size(channel_map));
 opts.ticks = (numel(channel_map) > 6) == any(named('-ti'));
 
-clf
-C = lines(7); 
-
+if numel(channel_map) > 1, clf, end
 for pp = 1:numel(channel_map)
 
     if channel_map(pp) == 0, continue, end
-    subplot(subplot_nxy{:}, pp), cc = channel_map(pp); 
 
+    cc = channel_map(pp); 
     ok = (t_roi & data.channel == cc & pass_ok(data.pass)); 
+    
+    if ~any(ok), continue, end
+    if numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
+    else cla reset
+    end
 
     scatter(data.time(ok), data.pass(ok), [], ...
             data.unit(ok), '.')
@@ -85,6 +92,8 @@ for pp = 1:numel(channel_map)
     
     p = get(gca,'Position'); 
     set(gca,'Position',p + [-1 -1 2 2].*p([3 4 3 4])/10)
+    set(gca,'UserData',cc)
+    
     if ~opts.ticks, set(gca,'XTick',[],'YTick',[]); end
 end
 

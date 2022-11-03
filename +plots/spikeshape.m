@@ -34,7 +34,7 @@ end
 channel_map = plots.layout(data, varargin{:});
 
 if any(named('-time')), time = get('-time'); 
-else time = ((1:32)-12) / 20000 ; % default time
+else time = ((1:32)-8) / 20000 ; % default time
 end
 if numel(time) ~= size(data.shape,2)
     error('number of TIME samples (%d) must match %s (%d)', ...

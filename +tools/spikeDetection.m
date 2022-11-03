@@ -19,7 +19,7 @@ function data = spikeDetection(data)
  % Constructor
  function obj = SpikeDetect(varargin)
      obj.opts.algorithm = @threshold_RMS;
-     obj.opts.spikeWindow = (-8:8)';
+     obj.opts.spikeWindow = ((1:32)-8);  % 
      obj.opts.threshold = 3.5;
      obj.opts.minInterval = 0.001;
      obj.opts.preprocesing = {@preprocesser_CommonMode};
@@ -65,11 +65,12 @@ function obj = Detect(obj)
  function obj = Save(obj, varargin)
  obj.opts.spikeWindow = obj.opts.spikeWindow(:); % convert to column
  [spikeCounts,spikeTimes,spikeShapes] = Output(obj, varargin);
+
  % get variables to save
- params = obj.data.params; %#ok<NASGU>
- rmsValues = obj.data.rmsValues; %#ok<NASGU>
+ params = obj.data.params;
+ rmsValues = obj.data.rmsValues;
  settings = obj.data.settings;
- tags = obj.data.tags; %#ok<NASGU>
+ tags = obj.data.tags;
 
  settings.SpikeDetect = cleanStruct(obj.opts);
 
@@ -191,6 +192,7 @@ function indices = threshold_RMS(wave, chan, data, opts)
 function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
 
 
+
     
 if ~isfield(obj.opts, 'AnsariBradlyTail'), 
      obj.opts.AnsariBradlyTail = 'Right'; end
@@ -256,6 +258,7 @@ end
  t1 = tic;
  end
  end
+
  T = T ./ obj.data.rmsValues';
  obj.opts.algorithm = @threshold_RMS;
  obj.opts.autoThresholdLevels = T;

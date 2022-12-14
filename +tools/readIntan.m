@@ -510,6 +510,7 @@ for ty = channel_types
         otherwise,   this.DataInfo.Units = 'V';
     end
 
+    this.DataInfo.Channels = channels.(chan_(ty)); 
     output.(upper(ty{1})) = this;
 end
 

@@ -1,6 +1,6 @@
 
 function [epochs,opts] = segmentEpochs( data, varargin )
-% [epochs,opts] = segmentEpochs( [data], [trigger], ... )
+% [epochs,opts] = tools.segmentEpochs( [data], [trigger], ... )
 % 
 % Options:
 % 

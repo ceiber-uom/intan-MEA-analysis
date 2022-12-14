@@ -1,7 +1,32 @@
 
-function data = TeagerEnergyOperator(data, varargin)
+function data = TEO(data, varargin)
+% [epochs,opts] = tools.TEO( [data], [trigger], ... )
+% 
+% Implement the Teager Energy Operator (TEO). The TEO is a function that 
+%   accepts a time-series Y(t) and returns a new timeseries:  
+%   Y(t)' = Y(t)*Y(t) - Y(t-w)*Y(t+w)
+% 
+% The TEO is a nonlinear operation which emphasises high-frequency
+%   transients in the data, and so is good for spike-detection. I found
+%   that the TEO can improve spike detection for low SNR data and provide
+%   estimates of the output SNR (based on the expected peak height spectra 
+%   of spikes vs. noise detections), as detailed in chapter <5> of <thesis>
+% 
+% This implementation is adapted from the implementation used in 
+%   <my thesis>, and originates from <ref>. It has been adapted to 
+%   natively process the data returned by tools.readIntan or 
+%   tools.segmentEpochs.  
+% 
+% Options: 
+% -smooth [1]   : set wave smoothing factor (default: no smoothing). 
+% -kernel [vec] : set smoothing kernel (default: pascal kernel). 
+% -width [1]    : set window width for TEO
+% -raw          : if set, return in units-squared - default is to return 
+%                 sqrt(|y'(t)|) which is in the same units as y. 
+% 
+% Note: smoothing is applied /after/ TEO computation. 
 
-if isfield(data,'config')
+if isstruct(data) && isfield(data,'config')
     this = @(d) tools.TeagerEnergyOperator(d, varargin{:});
    [data, info] = tools.forWaveTypes(data, this, varargin{:});
     data.config.TEO = info;
@@ -20,15 +45,19 @@ else window = diag(rot90(pascal(sf))); window = window/sum(window);
 end
 if any(named('-wi')), dt = get_('-wi'); end
 
+% remind again what pascal window is? 
+
 disp('Applying Teager energy operator')
 
 teo_ = @(y) y.^2 - circshift(y,[dt 0 0]) .* circshift(y,[-dt 0 0]);
 
-wave = teo_(data.data);
-if length(window) > 1, wave = convn(wave,window,'same'); end
-wave = sqrt(abs(double(wave)));
+no_unpack = isnumeric(data);
 
-data.data = wave; 
+if no_unpack, wave = teo_(data); else wave = teo_(data.data); end
+if length(window) > 1, wave = convn(wave,window,'same');      end
+if ~any(named('-raw')), wave = sqrt(abs(double(wave)));       end
+if no_unpack, data = wave; else data.data = wave;             end
+
 return
 
 tic %#ok<UNRCH> 

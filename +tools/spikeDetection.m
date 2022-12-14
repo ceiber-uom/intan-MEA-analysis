@@ -1,99 +1,55 @@
 
 % function data = spikeDetection( data, varargin )
 
-% TODO implement this from my old Ph.D. code.
+% TODO reimplement this from my old Ph.D. code.
 
-function data = spikeDetection(data)
+function data = spikeDetection(data, varargin)
+
+if isfield(data,'config')
+    this = @(d) tools.spikeDetection(d, varargin{:});
+   [data, info] = tools.forWaveTypes(data, this, varargin{:});
+    data.config.SpikeDetection = info;
+    return
+end
+
+
+options = parse_options(varargin{:});
 
 
 
+epochs = data.data;
 
 
-% classdef SpikeDetect
+% Execute extensible preprocessing steps
+for pi = 1:length(options.preprocesing)
+    [epochs, obj] = options.preprocesing{pi}(epochs, obj);
+end
 
-%  properties opts data, end
-%  properties(Hidden) indices rawEpochs filename filepath, end
-% 
-%  methods
 
- % Constructor
- function obj = SpikeDetect(varargin)
-     obj.opts.algorithm = @threshold_RMS;
-     obj.opts.spikeWindow = ((1:32)-8);  % 
-     obj.opts.threshold = 3.5;
-     obj.opts.minInterval = 0.001;
-     obj.opts.preprocesing = {@preprocesser_CommonMode};
-     obj.opts.saveWaves = 'raw';
-     obj.opts.commonMode = true;
-     obj.opts.display = false;
-     obj = applyVargs2Opts (obj, varargin);
- end
+spike_indices = cell(size(epochs,2), size(epochs,3));
 
-function obj = Detect(obj)
-    if isempty(obj.data), obj = obj.Load(); end
-    if ~isfield(obj.data.settings, 'samplingRate'),
-     obj.data.settings.samplingRate = obj.data.settings.General.samplingRate;
-    end
-
- if isempty(obj.rawEpochs), epochs = obj.data.epochs;
-      obj.rawEpochs = epochs;
- else epochs = obj.rawEpochs;
- end
- obj.data = rmfield(obj.data,'epochs');
- % Execute extensible preprocessing steps
- for pi = 1:length(obj.opts.preprocesing)
- [epochs, obj] = obj.opts.preprocesing{pi}(epochs, obj);
- end
- t1 = tic;
- obj.indices = cell(size(epochs,2), size(epochs,3));
- if isfield(obj.opts, 'Channels'), C_range = obj.opts.Channels;
- else C_range = 1:size(epochs,3);
- end
+if any(named('-ch')), channel_list = get_('-ch');
+else channel_list = 1:size(epochs,3);
+end
 
  for ci = C_range
- if max(max(epochs(:,:,ci))) == 0, continue, end
- for ei = 1:size(epochs, 2)
- obj.indices{ei,ci} = obj.opts.algorithm(epochs(:,ei,ci), ci, ...
- obj.data, ...
- obj.opts);
- end
- if toc>15, disp(['Formatting Channel ' num2str(ci)]), tic, end
+   if max(max(epochs(:,:,ci))) == 0, continue, end
+   for ei = 1:size(epochs, 2)
+     obj.indices{ei,ci} = obj.opts.algorithm(epochs(:,ei,ci), ci, ...
+                                             obj.data, ...
+                                             obj.opts);
+   end
+   if toc>15, disp(['Formatting Channel ' num2str(ci)]), tic, end
  end
  obj.data.epochs = epochs(:,:,C_range);
+
  end
 
- function obj = Save(obj, varargin)
- obj.opts.spikeWindow = obj.opts.spikeWindow(:); % convert to column
- [spikeCounts,spikeTimes,spikeShapes] = Output(obj, varargin);
-
- % get variables to save
- params = obj.data.params;
- rmsValues = obj.data.rmsValues;
- settings = obj.data.settings;
- tags = obj.data.tags;
-
- settings.SpikeDetect = cleanStruct(obj.opts);
-
- disp(['Saving ' strrep(obj.filename,'-epochs','-spikes') '...' ]);
- save([obj.filepath strrep(obj.filename,'-epochs','-spikes')], ...
- 'spikeShapes', 'spikeCounts', 'spikeTimes', ...
- 'params', 'settings', 'rmsValues', 'tags');
- disp(['Results saved to file ' strrep(obj.filename,'-epochs','-spikes')]);
- end
- 
- function t = times(obj, varargin)
- % --- 14 lines of code hidden ---
- % Code is same as “Output” except only spikeTimes are returned
- end
-
- function s = shapes(obj, varargin)
- % --- 25 lines of code hidden ---
- % Code is same as “Output” except only spikeShapes are returned
- end
 
  function [spikeCounts,spikeTimes,spikeShapes] = Output(obj, varargin)
 
  obj.opts.spikeWindow = obj.opts.spikeWindow(:); % convert to column vector
+
  spikeTimes = cell(size(obj.data.epochs,2), size(obj.data.epochs,3));
  spikeCounts = int32(zeros(size(obj.data.epochs,2), size(obj.data.epochs,3)));
  spikeShapes = cell(size(obj.data.epochs,2), size(obj.data.epochs,3));
@@ -103,46 +59,23 @@ function obj = Detect(obj)
  end
 
  tic
- for ci = 1:size(obj.data.epochs, 3)
- for ei = 1:size(obj.data.epochs, 2)
- if ~isempty(obj.indices{ei,ci})
- temp = obj.opts.spikeWindow * ones(size(obj.indices{ei,ci})) + ...
- ones(size(obj.opts.spikeWindow)) * (obj.indices{ei,ci});
- temp(temp < 1) = 1;
- temp(temp > size(obj.data.epochs,1)) = size(obj.data.epochs,1);
+ for ci = 1:size(obj.data.epochs, 3) % for each channel
+   for ei = 1:size(obj.data.epochs, 2) % for each epoch
+     if isempty(obj.indices{ei,ci}), continue, end
 
- spikeCounts(ei, ci) = length(obj.indices{ei,ci});
- spikeTimes{ei,ci} = obj.indices{ei,ci} / obj.data.settings.samplingRate;
- spikeShapes{ei, ci} = reshape(epochs(temp,ei,ci),size(temp));
+     temp = obj.opts.spikeWindow * ones(size(obj.indices{ei,ci})) + ...
+     ones(size(obj.opts.spikeWindow)) * (obj.indices{ei,ci});
+     temp(temp < 1) = 1;
+     temp(temp > size(obj.data.epochs,1)) = size(obj.data.epochs,1);
 
+     spikeCounts(ei, ci) = length(obj.indices{ei,ci});
+     spikeTimes{ei,ci} = obj.indices{ei,ci} / obj.data.settings.samplingRate;
+     spikeShapes{ei, ci} = reshape(epochs(temp,ei,ci),size(temp));
+   end
+   if toc>15, disp(['Formatting Channel ' num2str(ci)]), tic, end
  end
  end
- if toc>15, disp(['Formatting Channel ' num2str(ci)]), tic, end
- end
- end
- function obj = Load(obj, varargin)
 
- if length(varargin) >= 1 && exist(varargin{1},'file')
-
- [obj.filename, obj.filepath] = strtok(fliplr(varargin{1}),'\');
- obj.filename = fliplr(obj.filename);
- obj.filepath = fliplr(obj.filepath);
- else
- [obj.filename, obj.filepath] = uigetfile({'*epochs.mat'});
- end
- disp(['Loading ' obj.filename])
- obj.data = load([obj.filepath obj.filename]);
- end
- 
- % property access methods
- function re = raw(obj), re = obj.rawEpochs; end
- function fn = name(obj), fn = obj.filename; end
- function fp = path(obj), fp = obj.filepath; end
- function obj = rename(obj, fullname)
-   [fn, fp] = strtok(fliplr(fullname),'\');
-   obj.filename = fliplr(fn);
-   obj.filepath = fliplr(fp);
- end
 
 % Threshold crossing detector variants:
 function indices = threshold_RMS(wave, chan, data, opts)
@@ -191,9 +124,6 @@ function indices = threshold_RMS(wave, chan, data, opts)
 
 function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
 
-
-
-    
 if ~isfield(obj.opts, 'AnsariBradlyTail'), 
      obj.opts.AnsariBradlyTail = 'Right'; end
 end
@@ -272,3 +202,38 @@ end
 
 
 
+
+ end
+end
+end
+
+%% The following code has been refactored
+
+function options = get_detect_options(varargin) 
+
+options = struct;
+
+options.algorithm = @threshold_RMS;
+options.preprocesing = {@preprocesser_CommonMode};
+options.spikeWindow = ((1:32)-8);  % TODO - check this vs Plexon defaults
+options.threshold = 3.5; % default threshold for threshold_RMS
+options.minInterval = 0.001;
+options.display = false;
+
+named = @(s) strncmpi(s,varargin,numel(s));
+get_ = @(v) varargin{find(named(v))+1};
+
+if any(named('-op')), options = get_('-op'); end
+
+
+% 
+for f = fieldnames(options)', f = f{1}; %#ok<FXSET> 
+  fc = class(options.(f));
+  if any(named(f)), options.(f) = get_(f);
+  elseif any(named(['-' f])), options.(f) = get_(f); 
+  end
+
+  % if ~strcmp(class(options.(f))
+end
+
+return

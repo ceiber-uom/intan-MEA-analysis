@@ -8,6 +8,12 @@ data = tools.readIntan(p_(list(1)));
 
 %%
 
+
+data = tools.spikeDetection(data); 
+
+
+%%
+
 plots.epochs(data);
 
 

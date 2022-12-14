@@ -1,5 +1,5 @@
 
-function data = TEO(data, varargin)
+function [data,opts] = TEO(data, varargin)
 % [epochs,opts] = tools.TEO( [data], [trigger], ... )
 % 
 % Implement the Teager Energy Operator (TEO). The TEO is a function that 
@@ -28,7 +28,7 @@ function data = TEO(data, varargin)
 
 if isstruct(data) && isfield(data,'config')
     this = @(d) tools.TeagerEnergyOperator(d, varargin{:});
-   [data, info] = tools.forWaveTypes(data, this, varargin{:});
+   [data, info] = tools.forWaveType(data, this, varargin{:});
     data.config.TEO = info;
     return
 end
@@ -57,6 +57,13 @@ if no_unpack, wave = teo_(data); else wave = teo_(data.data); end
 if length(window) > 1, wave = convn(wave,window,'same');      end
 if ~any(named('-raw')), wave = sqrt(abs(double(wave)));       end
 if no_unpack, data = wave; else data.data = wave;             end
+
+opts.TEO_width = dt;
+opts.TEO_smoothing = numel(window);
+if any(named('-ke')), opts.TEO_custom_kernel = window; end
+if opts.TEO_smoothing == 1, opts.TEO_smoothing = false; end
+
+
 
 return
 

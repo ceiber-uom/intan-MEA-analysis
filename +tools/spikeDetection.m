@@ -12,7 +12,6 @@ if isfield(data,'config')
     return
 end
 
-
 options = parse_options(varargin{:});
 
 

@@ -62,7 +62,7 @@ opts.TEO_width = dt;
 opts.TEO_smoothing = numel(window);
 if any(named('-ke')), opts.TEO_custom_kernel = window; end
 if opts.TEO_smoothing == 1, opts.TEO_smoothing = false; end
-
+opts.return_raw_TEO = any(named('-raw'));
 
 
 return

@@ -1,104 +1,137 @@
 
+function [data,opts] = spikeDetection(data, varargin)
 % function data = spikeDetection( data, varargin )
-
+% 
 % TODO reimplement this from my old Ph.D. code.
-
-function data = spikeDetection(data, varargin)
+% 
 
 if isfield(data,'config')
     this = @(d) tools.spikeDetection(d, varargin{:});
-   [data, info] = tools.forWaveTypes(data, this, varargin{:});
+   [spikes, info] = tools.forWaveTypes(data, this, varargin{:});
     data.config.SpikeDetection = info;
+    error here_append_spikes
     return
 end
 
-options = parse_options(varargin{:});
+named = @(s) strncmpi(s,varargin,numel(s));
+get_ = @(v) varargin{find(named(v))+1};
 
+opts = parse_options(varargin{:}); 
 
+if opts.detect_symmetric, epochs = abs(epochs); end
 
-epochs = data.data;
+epochs = data.data; % [time x chan x ... ]
 
+dt = mean(diff(data.time));
 
-% Execute extensible preprocessing steps
-for pi = 1:length(options.preprocesing)
-    [epochs, obj] = options.preprocesing{pi}(epochs, obj);
+if isempty(opts.channel_threshold)
+    error here_get_channel_RMS
 end
 
-
-spike_indices = cell(size(epochs,2), size(epochs,3));
+epoch_size = size(epochs);
+assert(epoch_size(1) > 1, ...
+      'epochs should be a (time x channels x ... ) matrix')
+epochs = reshape(epochs, size(epochs,1), []); 
 
 if any(named('-ch')), channel_list = get_('-ch');
-else channel_list = 1:size(epochs,3);
+else channel_list = 1:size(epochs,2);
 end
 
- for ci = C_range
-   if max(max(epochs(:,:,ci))) == 0, continue, end
-   for ei = 1:size(epochs, 2)
-     obj.indices{ei,ci} = obj.opts.algorithm(epochs(:,ei,ci), ci, ...
-                                             obj.data, ...
-                                             obj.opts);
-   end
-   if toc>15, disp(['Formatting Channel ' num2str(ci)]), tic, end
- end
- obj.data.epochs = epochs(:,:,C_range);
+if numel(opts.channel_thresholds) == 1
+    opts.channel_thresholds = repmat(opts.channel_thresholds, ...
+                                     epoch_size(1), 1);
+end
 
- end
+%% Core detection loop
+
+spike_indices = cell(epoch_size(2:end)); 
+
+tt = tic;
+
+for dd = 1:numel(spike_indices) 
+
+  cc = mod(dd-1,epoch_size(1))+1;
+  if ~any(channel_list == cc), continue, end
+
+  spk_cutoff = opts.channel_thresholds(cc,:); 
+  spk_min_dt = opts.minimum_seperation / dt; 
+
+  spike_indices{dd} = tools.peakseek(epochs(:,dd), spk_min_dt, spk_cutoff);
+
+  if toc(tt)>5, tt = tic;  
+    fprintf('Detecting Spikes, %d/%d\n ', dd, numel(spike_indices))
+  end
+end
+
+%% Format output 
+
+spike.times  = cellfun(@(x) x*dt, spike_indices, 'unif', 0);
+spike.counts = cellfun(@numel, spike_indices);
+
+spike.waveform = cell(size(spike_indices));
+
+spk_window = reshape(opts.spike_wave_indices,1,[]); 
+
+tt = tic;
+if ~any(named('-no-w'))
+  for dd = 1:numel(spike_indices) 
+    if isempty(spike_indices{dd}), continue, end
+
+    idx = max(min(1, spk_window + reshape(spike_indices{dd},1,[])), ...
+                   size(epochs,1));
+  
+    spike.waveform{dd} = epochs(idx,dd); 
+  
+    if toc(tt)>5, tt = tic; 
+      fprintf('Gathering Waveforms, %d/%d\n ', dd, numel(spike_indices))
+    end
+  end
+end
+
+return
 
 
- function [spikeCounts,spikeTimes,spikeShapes] = Output(obj, varargin)
-
- obj.opts.spikeWindow = obj.opts.spikeWindow(:); % convert to column vector
-
- spikeTimes = cell(size(obj.data.epochs,2), size(obj.data.epochs,3));
- spikeCounts = int32(zeros(size(obj.data.epochs,2), size(obj.data.epochs,3)));
- spikeShapes = cell(size(obj.data.epochs,2), size(obj.data.epochs,3));
-
- if strncmpi(obj.opts.saveWaves, 'raw', 3), epochs = obj.rawEpochs;
- else epochs = obj.data.epochs;
- end
-
- tic
- for ci = 1:size(obj.data.epochs, 3) % for each channel
-   for ei = 1:size(obj.data.epochs, 2) % for each epoch
-     if isempty(obj.indices{ei,ci}), continue, end
-
-     temp = obj.opts.spikeWindow * ones(size(obj.indices{ei,ci})) + ...
-     ones(size(obj.opts.spikeWindow)) * (obj.indices{ei,ci});
-     temp(temp < 1) = 1;
-     temp(temp > size(obj.data.epochs,1)) = size(obj.data.epochs,1);
-
-     spikeCounts(ei, ci) = length(obj.indices{ei,ci});
-     spikeTimes{ei,ci} = obj.indices{ei,ci} / obj.data.settings.samplingRate;
-     spikeShapes{ei, ci} = reshape(epochs(temp,ei,ci),size(temp));
-   end
-   if toc>15, disp(['Formatting Channel ' num2str(ci)]), tic, end
- end
- end
 
 
-% Threshold crossing detector variants:
-function indices = threshold_RMS(wave, chan, data, opts)
- if length(opts.threshold) >= chan, T = opts.threshold(chan);
- else T = opts.threshold;
- end
- T = T * data.rmsValues(chan);
- W = opts.minInterval * data.settings.samplingRate;
- indices = peakseek(abs(wave), W, T);
 
-    
-    
- function indices = threshold_ABS(wave, chan, data, opts)
- if length(opts.threshold) >= chan, T = opts.threshold(chan);
- else T = opts.threshold;
- end
- W = opts.minInterval * data.settings.General.samplingRate;
- indices = peakseek(abs(wave), W, T);
+function opts = get_detect_options(varargin) 
 
-%% Preprocessers (passed as function handles):
-% function [epochs, obj] = preprocess_ ... ( epochs, obj )
+named = @(s) strncmpi(s,varargin,numel(s));
+get_ = @(v) varargin{find(named(v))+1};
 
-    
+opts = struct;
 
+if any(named('-th'))
+    opts.threshold_algorithm = 'as specified';
+    opts.channel_thresholds = get_('-th');
+% elseif ...
+else
+    opts.threshold_algorithm = 'RMS';     
+    opts.channel_thresholds = []; % auto from RMS algorithm
+    opts.relative_RMS_threshold = 3.5; % default threshold for threshold_RMS
+    if any(named('-rms')), opts.relative_RMS_threshold = get_('-rms'); end
+end
+
+opts.minimum_seperation = 0.001; % in units of data.time
+opts.detect_symmetric = any(named('-abs')) || any(named('-sym')); 
+
+if ~any(named('-no-w'))
+  opts.spike_wave_indices = ((1:32)-8); % TODO - check this vs Plexon defaults
+end
+
+if any(named('-o')), oi = get_('-o'); 
+  for f = fieldnames(oi)',
+    if isfield(opts, f{1}), opts.(f{1}) = oi.(f{1}); end
+  end
+end
+
+return
+
+
+%% From below is OLD code <thesis-era>, my professional opinion is that I
+% may have done a bunch of reinventing the wheel in a way that was not
+% useful - basically that code structure was almost a self-contained
+% load-run-and-save system that is way clearer as a script. 
 
 % function [epochs, obj] = preprocesser_Wavelets(epochs, obj )
 % 
@@ -119,120 +152,101 @@ function indices = threshold_RMS(wave, chan, data, opts)
 %  end
 %  toc
 
+function [AB_stats, opts] = spikeTimeDistStats(data, varargin )
 
+opts = struct; 
+opts.stats_roi = [0 inf];
+opts.target_spikerate = 10; % imp/s
 
-function [epochs, obj] = preprocesser_AnsariBradly(epochs, obj )
-
-if ~isfield(obj.opts, 'AnsariBradlyTail'), 
-     obj.opts.AnsariBradlyTail = 'Right'; end
-end
-if ~isfield(obj.opts, 'AnsariBradlyXform'),
-     obj.opts.AnsariBradlyXform = @(p) sqrt(-log10(p));
-end
-
- if ~isfield(obj.opts, 'targetSpikerate'), obj.opts.targetSpikerate = 10; end % spikes / s
- targetSpikes = obj.opts.targetSpikerate*numel(epochs(:,:,1))/obj.data.settings.samplingRate;
-
- if max(obj.opts.display_autoThreshold), figure('Color','w'), end
- disp(['Calculating Thresholds to achieve ' num2str(round(targetSpikes)) ' spikes/channel.'])
- t1 = tic;
-
- ed = obj.data.settings.SaveEpochs.epochDuration;
- if ~isfield(obj.opts, 'referenceROI'), obj.opts.referenceROI = [ed-.085 ed]; end
- roi = obj.opts.referenceROI/ed*size(epochs,1); % window of interest
-
- ref = rand(round([1 targetSpikes]))*size(epochs,1);
- ref = ref(ref > min(roi) & ref < max(roi));
- clear ed
- obj.opts.algorithm = @threshold_ABS;
-
- P = zeros(size(epochs,3),1);
- T = zeros(size(epochs,3),1);
-
- for ci = 1:size(epochs,3)
-
- obj.opts.threshold(ci) = 1;
- if max(max(epochs(:,:,ci))) == 0, continue, end
- wave = epochs(:,:,ci);
- wave = wave(:);
-
-
- indices = obj.opts.algorithm(wave, ci, obj.data, obj.opts);
-
- ROI_indices = mod(indices,size(epochs,1));
- inROI = (ROI_indices > min(roi) & ROI_indices < max(roi));
-
- while sum(inROI) < length(ref)/size(epochs,3)
- obj.opts.threshold(ci) = 0.1 * obj.opts.threshold(ci);
- indices = obj.opts.algorithm(wave, ci, obj.data, obj.opts);
- ROI_indices = mod(indices,size(epochs,1));
- inROI = (ROI_indices > min(roi) & ROI_indices < max(roi));
- end
- indices = indices(inROI);
- [peaks, sortIndex] = sort(abs(wave(indices)), 'descend');
- T(ci) = (peaks(round(targetSpikes))+peaks(round(targetSpikes) + 1))/2;
-
- indices = indices(sortIndex);
- indices = indices(1:round(targetSpikes));
- ROI_indices = mod(indices,size(epochs,1));
-
- % ref + median(ROI_indices)
- [~,P(ci)] = ansaribradley(ref, ROI_indices, 'Tail', obj.opts.AnsariBradlyTail);
-
- if max(obj.opts.display_autoThreshold == ci)
- autoThresholdPlot(obj, peaks, T(ci), targetSpikes, size(epochs), ci, P(ci));
- end
- if toc(t1) > 5 || P(ci) < 0.05,
- fprintf('... C%d: p = %.3f at %d µV\n', ci, P(ci), T(ci))
- t1 = tic;
- end
- end
-
- T = T ./ obj.data.rmsValues';
- obj.opts.algorithm = @threshold_RMS;
- obj.opts.autoThresholdLevels = T;
- obj.opts.autoThresholdPvals = P;
-
- P = obj.opts.AnsariBradlyXform(P);
- P(~isfinite(P)) = 0;
- P(isnan(P)) = 0;
- obj.opts.threshold = nansum(T.*P)/nansum(P);
- disp(['p-Weighted threshold = ' num2str(obj.opts.threshold) 'xRMS'])
-
-
-
-
- end
-end
+if any(named('-tail')), opts.AB_tail = get_('-tail'); end
+if any(named('-transform')), opts.AB_transform = get_('-transform'); end
+if any(named('-roi')), opts.AB_roi = get_('-roi'); end
+if any(named('-r')), opts.target_spikerate = get_('-r'); 
+elseif any(named('-tar')), opts.target_spikerate = get_('-tar');
 end
 
-%% The following code has been refactored
+if numel(opts.stats_roi) == 1, 
+    opts.stats_roi = opts.stats_roi * [1 inf]; 
+end
 
-function options = get_detect_options(varargin) 
+delta_t = mean(diff(data.time)); 
 
-options = struct;
+data_size = size(data.data); 
+if numel(data_size) < 3, data_size(3) = 1; end
 
-options.algorithm = @threshold_RMS;
-options.preprocesing = {@preprocesser_CommonMode};
-options.spikeWindow = ((1:32)-8);  % TODO - check this vs Plexon defaults
-options.threshold = 3.5; % default threshold for threshold_RMS
-options.minInterval = 0.001;
-options.display = false;
+target_spikes = opts.target_spikerate * delta_t * data_size(1) * ...
+                                             prod(data_size(3:end)); 
 
-named = @(s) strncmpi(s,varargin,numel(s));
-get_ = @(v) varargin{find(named(v))+1};
-
-if any(named('-op')), options = get_('-op'); end
+fprintf('Estimating thresholds to achieve %0.0f spikes/channel... \n', target_spikes)
 
 
-% 
-for f = fieldnames(options)', f = f{1}; %#ok<FXSET> 
-  fc = class(options.(f));
-  if any(named(f)), options.(f) = get_(f);
-  elseif any(named(['-' f])), options.(f) = get_(f); 
+
+
+
+
+t1 = tic;
+
+roi = data.time >= opts.AB_roi(1) & data.time < opts.AB_roi(2); 
+
+fake_spikes = rand(ceil([1 targetSpikes]))*size(data.data,1);
+fake_spikes = fake_spikes(roi(ceil(fake_spikes)));
+
+clear ed
+obj.opts.algorithm = @threshold_ABS;
+
+
+
+P = zeros(size(epochs,3),1);
+T = zeros(size(epochs,3),1);
+
+for ci = 1:size(epochs,3)
+
+  obj.opts.threshold(ci) = 1;
+  if max(max(epochs(:,:,ci))) == 0, continue, end
+  wave = epochs(:,:,ci);
+  wave = wave(:);
+
+  indices = obj.opts.algorithm(wave, ci, obj.data, obj.opts);
+
+  ROI_indices = mod(indices,size(epochs,1));
+  inROI = (ROI_indices > min(roi) & ROI_indices < max(roi));
+
+  while sum(inROI) < length(ref)/size(epochs,3)
+    obj.opts.threshold(ci) = 0.1 * obj.opts.threshold(ci);
+    indices = obj.opts.algorithm(wave, ci, obj.data, obj.opts);
+    ROI_indices = mod(indices,size(epochs,1));
+    inROI = (ROI_indices > min(roi) & ROI_indices < max(roi));
   end
 
-  % if ~strcmp(class(options.(f))
+  indices = indices(inROI);
+  [peaks, sortIndex] = sort(abs(wave(indices)), 'descend');
+  T(ci) = (peaks(round(targetSpikes))+peaks(round(targetSpikes) + 1))/2;
+
+  indices = indices(sortIndex);
+  indices = indices(1:round(targetSpikes));
+  ROI_indices = mod(indices,size(epochs,1));
+
+  % ref + median(ROI_indices)
+  [~,P(ci)] = ansaribradley(ref, ROI_indices, 'Tail', obj.opts.AnsariBradlyTail);
+
+  if max(obj.opts.display_autoThreshold == ci)
+    % autoThresholdPlot(obj, peaks, T(ci), targetSpikes, size(epochs), ci, P(ci));
+  end
+  if toc(t1) > 5 || P(ci) < 0.05,
+    fprintf('... C%d: p = %.3f at %d µV\n', ci, P(ci), T(ci))
+    t1 = tic;
+  end
 end
+
+T = T ./ obj.data.rmsValues';
+obj.opts.algorithm = @threshold_RMS;
+obj.opts.autoThresholdLevels = T;
+obj.opts.autoThresholdPvals = P;
+
+P = obj.opts.AnsariBradlyXform(P);
+P(~isfinite(P)) = 0;
+P(isnan(P)) = 0;
+obj.opts.threshold = nansum(T.*P)/nansum(P);
+disp(['p-Weighted threshold = ' num2str(obj.opts.threshold) 'xRMS'])
 
 return

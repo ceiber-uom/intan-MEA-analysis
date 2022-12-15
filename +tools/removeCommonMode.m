@@ -21,7 +21,7 @@ named = @(s) strncmpi(s,varargin,numel(s));
 
 if isfield(data,'config')
    this = @(d) tools.removeCommonMode(d, varargin{:});
-  [data, info] = tools.forWaveTypes(data, this, varargin{:});
+  [data, info] = tools.forWaveType(data, this, varargin{:});
    data.config.commonMode = info;
    return
 end

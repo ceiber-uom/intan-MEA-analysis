@@ -9,12 +9,15 @@ function raster (data, varargin)
 % Options:
 % -chan [c1 c2 c3 ...] Set channels 
 % -map  [c1 c2;  ... ] Set channels and arrangement of channels
+% -unit [u1 u2 ... ]   Filter the displayed units 
 % -rc   [rows cols]    Set subplot size (# rows / columns)
 % -roi [t0 t1]         Set beginning and end of plotting window
 % -ticks               Toggle default ticks behaviour (ticks enabled for
 %                       6 or fewer channels, disabled otherwise)
 % -pass [pass_ids]     Select passes to plot (for expoched data), 
 % -no-epochs           Plot all spikes on a single axes, time vs. channel
+% -expand-units        Expand out the different units (for visibility)
+%                      enabled by default if epoch mode disabled. 
 % 
 % if any(named('-wave')) || ~isfield(...)
 % end
@@ -38,15 +41,24 @@ if any(named('-roi')), t_roi = get('-roi');
 else t_roi = true(size(data.time)); 
 end
 
+if any(named('-unit')), u_roi = get('-unit'); 
+  if isnumeric(u_roi), u_roi = ismember(data.unit, u_roi); end
+  if any(u_roi), t_roi = t_roi & u_roi; end
+end
+
 u_max = max(data.unit(:));
 
 %%
 if ~isfield(data,'epoch') || ~any(named('-no-e'))
     %% Basic raster plot
     
+    y = data.channel(t_roi); 
+    if ~any(named('-ex')), 
+        y = y + data.unit(t_roi)/(u_max+1)-0.5; 
+    end
+
     cla reset
-    scatter(data.time(t_roi), data.channel(t_roi), [], ...
-            data.unit(t_roi), '.')
+    scatter(data.time(t_roi), y, [], data.unit(t_roi), '.')
     colormap([.5 .5 .5; lines(u_max)])
     caxis([0 u_max])
     plots.tidy
@@ -84,8 +96,10 @@ for pp = 1:numel(channel_map)
     else cla reset
     end
 
-    scatter(data.time(ok), data.pass(ok), [], ...
-            data.unit(ok), '.')
+    y = data.pass(ok); 
+    if any(named('-ex')), y = y+data.unit(ok)/u_max-0.5; end 
+
+    scatter(data.time(ok), y, [], data.unit(ok), '.')
     colormap([.5 .5 .5; lines(u_max)])
     caxis([0 u_max])
     plots.tidy

@@ -1,6 +1,5 @@
 
 
-
 function map = layout(data, varargin)
 % channel_map = plots.layout(data, ... )
 % implement standard channel mapping syntax

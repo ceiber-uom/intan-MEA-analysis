@@ -19,8 +19,7 @@ function raster (data, varargin)
 % -expand-units        Expand out the different units (for visibility)
 %                      enabled by default if epoch mode disabled. 
 % 
-% if any(named('-wave')) || ~isfield(...)
-% end
+% v0.1 - 23 December 2022 - Calvin Eiber <c.eiber@ieee.org>
 
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};

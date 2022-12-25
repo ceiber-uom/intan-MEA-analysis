@@ -41,7 +41,7 @@ end
 subplot_nxy = num2cell(size(channel_map));
 opts.ticks = (numel(channel_map) > 6) == any(named('-ti'));
 opts.hash  = ~any(named('-no-hash'));
-opts.merge = any(named('-ignore-u'));
+opts.merge = any(named('-ignore-u')) || any(named('-merge'));
 opts.log   = any(named('-log')); 
 
 % Add channel labels
@@ -143,6 +143,11 @@ pos = cat(1,h.Position);
 
 [~,blc] = min(pos*[1;1;0;0]);
 set(h(blc),'XTickMode','auto');
+
+if opts.log, xlabel(h(blc),'log_{10} ISI (s)')
+else xlabel(h(blc),'ISI (s)')
+end
+
 set(h,'LineWidth',0.8)
 
 return

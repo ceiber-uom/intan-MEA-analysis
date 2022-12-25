@@ -20,8 +20,6 @@ function heatmap (data, varargin)
 % 
 % v0.1 - 25 December 2022 - Calvin Eiber <c.eiber@ieee.org>
 
-
-
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
@@ -117,10 +115,10 @@ label_none = any(named('-no-l'));
 for cc = 1:nC
   if label_none, break, end
   [a,b] = find(channel_map == cc);
-  ok = label_all || ...
+  do_label = label_all || ...
          (a == 1 || a == size(channel_map,1)) && ...
          (b == 1 || b == size(channel_map,2));
-  if ~ok, continue, end
+  if ~do_label, continue, end
   text(a,b,num2str(cc),'Color',[.9 .9 .9],'FontSize',14,'horiz','center')
 end
 

@@ -1,5 +1,5 @@
 
-function spikes (data, varargin)
+function spikeshape (data, varargin)
 % function plots.spikeshape( data, ... )
 %
 % Basic plots of recorded spike shapes. 
@@ -16,6 +16,7 @@ function spikes (data, varargin)
 % -pass [pass_ids]     Select passes to plot (for expoched data), 
 % -n [24]              Set number of example waves. 
 %                      If 0, show average only +- SD
+% -no-hash             Only show spikes with unit code > 0. 
 % -mean                Show mean +- standard deviation 
 
 named = @(s) strncmpi(s,varargin,numel(s));
@@ -34,21 +35,23 @@ end
 channel_map = plots.layout(data, varargin{:});
 
 if any(named('-time')), time = get('-time'); 
-else time = ((1:32)-8) / 20000 ; % default time
+elseif size(data.shape,2) == 32
+     time = ((1:32)-8) / 20000 ; % default time
+else time = (1:size(data.shape,2)) / 20000 ; % default time
 end
 if numel(time) ~= size(data.shape,2)
-    error('number of TIME samples (%d) must match %s (%d)', ...
-           numel(time), 'number of samples for spike.shape', ...
-           size(data.shape,2))
+    error('number of TIME samples (%d) must match %s (%d)\n%s', ...
+           numel(time), 'number of samples for spike.shape.', ...
+           size(data.shape,2), 'Use -time [t] to set.')
 else time = reshape(time,1,[]);
 end
 
-if any(named('-roi')), t_roi = get('-roi'); 
-    if numel(t_roi) == 2
-        t_roi = (data.time >= min(t_roi) & ...
-                 data.time <= max(t_roi));
+if any(named('-roi')), include = get('-roi'); 
+    if numel(include) == 2
+        include = (data.time >= min(include) & ...
+                   data.time <= max(include));
     end
-else t_roi = true(size(data.time)); 
+else include = true(size(data.time)); 
 end
 
 u_max = max(data.unit(:));
@@ -61,7 +64,6 @@ if any(named('-mean')), n_examples = 0; end
 do_hash = ~any(named('-no-hash'));
 
 %% One-per-channel spike shape plots
-
 
 if any(named('-pass')), pass_ok = get_('-pass');
 elseif ~isfield(data,'pass')
@@ -82,7 +84,7 @@ for pp = 1:numel(channel_map)
     if channel_map(pp) == 0, continue, end
     
     cc = channel_map(pp);
-    this_channel = (t_roi & data.channel == cc & pass_ok(data.pass)); 
+    this_channel = (include & data.channel == cc & pass_ok(data.pass)); 
     if ~do_hash, this_channel = this_channel & data.unit > 0; end
 
     if ~any(this_channel), continue, end
@@ -128,6 +130,10 @@ for pp = 1:numel(channel_map)
     set(gca,'Position',p + [-1 -1 2 2].*p([3 4 3 4])/10)
     set(gca,'UserData',cc)
     if ~opts.ticks, set(gca,'XTick',[],'YTick',[]); end
+
+    
+
+
 end
 
 h = get(gcf,'Children');

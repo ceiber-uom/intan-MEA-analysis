@@ -9,8 +9,8 @@ data = tools.readPlexon(p_(list(1)));
 %%
 
 msa = analysis.states(data, '-roi', [0 500], ...
-                                '-chan',[56 57 60 62], ... 
-                                '-bin', 0.5);
+                            '-chan',[56 57 60 62], ... 
+                            '-bin', 0.5);
 
 %% 
 

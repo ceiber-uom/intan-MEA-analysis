@@ -52,20 +52,20 @@ if ~exist('data','var')
     data.config = struct; 
 end
 
-AMP = 'SPIKE';
-if any(named('-field')), AMP = get_('-field'); end
-if ~isfield(data,AMP), data.(AMP) = struct; 
-elseif ~isstruct(data.(AMP)), AMP = [AMP '_spikes']; 
-    if ~isfield(data,AMP), data.(AMP) = struct; end
+field = 'SPIKE';
+if any(named('-field')), field = get_('-field'); end
+if ~isfield(data,field), data.(field) = struct; 
+elseif ~isstruct(data.(field)), field = [field '_spikes']; 
+    if ~isfield(data,field), data.(field) = struct; end
 end
 
 [shape_vars,svi] = setdiff(spikes.Properties.VariableNames, ...
                      {'Timestamp','Channel','Unit'});
 
-data.(AMP).time    = spikes.Timestamp;
-data.(AMP).channel = spikes.Channel;
-data.(AMP).unit    = spikes.Unit;
-data.(AMP).shape   = spikes{:,svi};
+data.(field).time    = spikes.Timestamp;
+data.(field).channel = spikes.Channel;
+data.(field).unit    = spikes.Unit;
+data.(field).shape   = spikes{:,svi};
 
 data.config.shape_variables = shape_vars;
 

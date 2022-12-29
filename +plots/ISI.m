@@ -47,7 +47,6 @@ else xlabel(h(blc),'ISI (s)')
 end
 
 
-
 function yl = isi_plot(data, index, opts)
         
 isi = diff(data.time); 

@@ -497,7 +497,11 @@ for ty = channel_types
 
     this.name = upper(ty{1});
     this.time = data.(time_(ty));
+<<<<<<< HEAD
     this.wave = data.(chan_(ty))(sel,:)';
+=======
+    this.data = data.(chan_(ty))(sel,:)';
+>>>>>>> 7e9d600c94fa01938c1ac0f6bc89e9d5cab6ebb2
 
     if ~isempty(opts.time_roi)
         this = select_time(this, opts.time_roi);
@@ -533,7 +537,11 @@ sel = old.time >= min(time_range) & old.time <= max(time_range);
 
 new.name = old.name;
 new.time = old.time(sel);
+<<<<<<< HEAD
 new.wave = old.wave(sel,:);
+=======
+new.data = old.data(sel,:);
+>>>>>>> 7e9d600c94fa01938c1ac0f6bc89e9d5cab6ebb2
 
 return
 

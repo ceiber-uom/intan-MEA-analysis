@@ -69,7 +69,7 @@ printInfo();
 disp('Done! ')
 
 make_summary_graphic(results, varargin)
-
+plots.PDF_tools(gcf, do_PDF, 'page-%04d-%04d.ps', 0, 1)
 plots.PDF_tools('compile',do_PDF,'states-analysis (%d).pdf')
 
 

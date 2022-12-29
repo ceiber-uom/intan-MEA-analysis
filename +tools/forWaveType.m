@@ -8,7 +8,7 @@ function [data, varargout] = forWaveType( data, fun, varargin )
 %   By default, if the user did not specify one of the following, FUNCTION
 %   is applied to data.AMP (if data.SPIKE is not present) or data.SPIKE 
 % 
-% types = .AMP, .AUX, .VOLT, .ADC, .DI, .DO, .TEMP, (.SPIKE)
+% types = (.SPIKE), .AMP, .AUX, .VOLT, .ADC, .DI, .DO, .TEMP, 
 % 
 % Example Usage: 
 % if isfield(data,'config')
@@ -33,10 +33,11 @@ out = varargout;
 varargout = cellfun(@(x) struct, varargout,'unif',0);
 
 do_type = cellfun(@(t) any(named(t)), types); 
-if ~any(do_type), 
-    do_type(find(1)) = true;
-    do_type(1) = true; 
-end % by default 
+
+if ~any(do_type), % default: do the first specified wave type 
+    % this is almost always what the user wanted to do. 
+    do_type(find(isfield(data,types),1)) = true;
+end  
 
 for ty = types(do_type)
   if ~isfield(data,ty{1}), continue, end

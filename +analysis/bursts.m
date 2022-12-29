@@ -1,6 +1,6 @@
 
-function results = burstAnalysis(data, varargin)
-% analysis.multiState( data, ... )
+function results = bursts(data, varargin)
+% results = analysis.bursts( spike_data, ... )
 % 
 % For each channel and unit in the supplied data, this analysis looks at
 %  the bursts (closely spaced spikes on the basis of ISI histograms). 

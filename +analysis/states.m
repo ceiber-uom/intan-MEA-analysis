@@ -1,6 +1,6 @@
 
-function results = multiState(data, varargin)
-% analysis.multiState( data, ... )
+function results = states(data, varargin)
+% results = analysis.states( spike_data, ... )
 % 
 % For each channel and unit in the supplied data, this analysis looks at
 %  the time-varying firing rate of that unit and attempts to identify

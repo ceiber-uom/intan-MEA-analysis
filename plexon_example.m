@@ -8,12 +8,12 @@ data = tools.readPlexon(p_(list(1)));
 
 %%
 
-msa = analysis.multiState(data, '-roi', [0 500], ...
+msa = analysis.states(data, '-roi', [0 500], ...
                                 '-chan',[56 57 60 62], ... 
                                 '-bin', 0.5);
 
 %% 
 
-all_ba = analysis.burstAnalysis(data); 
+all_ba = analysis.bursts(data); 
 
 % ba = analysis.burstAnalysis(data, '-chan', 57, '-unit', 4);

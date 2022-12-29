@@ -55,14 +55,23 @@ function results = states(data, varargin)
 % 
 % v0.1 - 28 December 2022 - Calvin Eiber <c.eiber@ieee.org>
 
+named = @(s) strncmpi(s,varargin,numel(s));
+
+if nargin == 0, try data = evalin('caller','data'); end, end %#ok<TRYNC> 
+
 disp(datestr(now)), disp('Running spike-rate multi-state analysis')
 
+do_PDF = any(named('-pdf'));
+plots.PDF_tools('setup',do_PDF);
+
 printInfo(); 
-if nargin == 0, try data = evalin('caller','data'); end, end
 [~, results] = tools.forChannels(data, @run_msa, varargin{:},'--ordered'); 
 disp('Done! ')
 
 make_summary_graphic(results, varargin)
+
+plots.PDF_tools('compile',do_PDF,'states-analysis (%d).pdf')
+
 
 return
 
@@ -225,7 +234,8 @@ stats.time_fraction   = the(@(c) mean(state == c));
 
 %% If requested, generate plot
 
-if ~any(named('-plot')), return, end
+do_PDF = any(named('-pdf'));
+if ~any(named('-plot')) && ~do_PDF, return, end
 
 %%
 
@@ -258,6 +268,12 @@ C = lines(n_classes);
 for ii = 1:n_classes
     plot(g1c(gmm_pars(:,ii),irx), irx, 'Color', C(ii,:),'LineWidth',1.2)
 end
+
+suptitle(sprintf('channel %d unit %d', stats.channel_unit))
+pause(0.01)
+
+do_PDF = any(named('-pdf'));
+plots.PDF_tools(gcf, do_PDF, 'page-%04d-%04d.ps', index)
 
 return
 

@@ -55,19 +55,27 @@ function results = bursts(data, varargin)
 % 
 % v0.1 - 28 December 2022 - Calvin Eiber <c.eiber@ieee.org>
 
-printInfo(); 
+named = @(s) strncmpi(s,varargin,numel(s));
+
 if nargin == 0, try data = evalin('caller','data'); end %#ok<TRYNC> 
 elseif isfield(data,'isi_threshold')
     clf, make_singleChannel_plot(data(1)), return
 end
 
+do_PDF = any(named('-pdf'));
+plots.PDF_tools('setup',do_PDF);
+
+
 disp(datestr(now)), disp('Running spike burst analysis')
 
+printInfo(); 
 [~, results] = tools.forChannels(data, @run_burst_analysis, ...
-                                 varargin{:},'--ordered'); 
+                                        varargin{:}, '--ordered'); 
 disp('Done! ')
 
 % make_summary_graphic(results, varargin)
+
+plots.PDF_tools('compile',do_PDF,'bursts-analysis (%d).pdf')
 
 return
 
@@ -194,6 +202,9 @@ stats.spike.burst_id = burst_id;
 if any(named('-no-plot')), return, end
 
 make_singleChannel_plot(stats, data, spike_nib)
+
+do_PDF = any(named('-pdf'));
+plots.PDF_tools(gcf, do_PDF, 'page-%04d-%04d.ps', index)
 
 return
 

@@ -1,6 +1,16 @@
 
 # TODO list
 
+## Revised Plan (Dec 2022)
+
++tools
+[x] .readIntan - load 'raw' wave data
+
+[x] .removeCommonMode - per EIBER 2015
+[x] .removeLineNoise - per PIETERSEN EIBER 2015
+[x] .TEO (Teager energy operater)
+[x] .forChannels - boilerplate 
+
 ## Planned Structure
 
 +tools 
@@ -19,8 +29,6 @@
     .epochs
     .heatmap
     .spikeMetrics
-
-
 
 
 ## Done

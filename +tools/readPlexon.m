@@ -1,6 +1,16 @@
 function data = readPlexon(filename, varargin)
-% data = tools.readPlexonCSV([data], filename, varargin)
-% function header go here
+% data = tools.readPlexon([data], filename, varargin)
+% 
+% Read tabular spike data as exported by Plexon and append it to the input
+% data structure (or generate a new data structure, compatible with tools
+% that work with the output of readIntan). 
+% 
+% The input table is required to have the "Timestamp", "Channel", and
+% "Unit" fields. 
+% 
+% Options: 
+% -field [SPIKE] - append spike data to what INTAN wave type?
+%                  .SPIKE is the default for this data. 
 % 
 % -field [AMP]
 
@@ -19,7 +29,7 @@ end
 if ~exist(filename,'file')
   filename = strrep(filename,'.csv','*.csv');
   if isempty(dir(filename))
-    [n,p] = uigetfile('*.csv',[],filename);
+    [n,p] = uigetfile({'*.csv';'*.xls;*.xlsx'},[],filename);
     filename = [p n];
   else
     list = dir(filename);
@@ -42,16 +52,21 @@ if ~exist('data','var')
     data.config = struct; 
 end
 
-AMP = 'AMP';
+AMP = 'SPIKE';
 if any(named('-field')), AMP = get_('-field'); end
 if ~isfield(data,AMP), data.(AMP) = struct; 
 elseif ~isstruct(data.(AMP)), AMP = [AMP '_spikes']; 
     if ~isfield(data,AMP), data.(AMP) = struct; end
 end
 
+[shape_vars,svi] = setdiff(spikes.Properties.VariableNames, ...
+                     {'Timestamp','Channel','Unit'});
+
 data.(AMP).time    = spikes.Timestamp;
 data.(AMP).channel = spikes.Channel;
 data.(AMP).unit    = spikes.Unit;
-data.(AMP).shape   = spikes{:,4:end};
+data.(AMP).shape   = spikes{:,svi};
+
+data.config.shape_variables = shape_vars;
 
 return

@@ -5,11 +5,18 @@
 
 +tools
 [x] .readIntan - load 'raw' wave data
+[x] .readPlexon - load sorted spike data processed in Plexon and saved in a tabular format
 
 [x] .removeCommonMode - per EIBER 2015
 [x] .removeLineNoise - per PIETERSEN EIBER 2015
 [x] .TEO (Teager energy operater)
-[x] .forChannels - boilerplate 
+
+
+
+[x] .forChannels - boilerplate loop over channels/units 
+[x] .forWaveType - boilerplate loop over Intan AMP inputs
+
+
 
 ## Planned Structure
 

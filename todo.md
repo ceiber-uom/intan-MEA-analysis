@@ -7,6 +7,7 @@
 [ ] finish implementing spike detection code
 [ ] implement forChannels code for waves
 [ ] confirm channel ordering
+[ ] test PDF generation
 
 # Revised Plan (Dec 2022)
 
@@ -50,30 +51,20 @@ These are the core functions for visualusation of the loaded data (with minimal 
 
 [x] `.tidy` - implement better axis style (tidyPlotForIllustrator)
 [x] `.layout` - source of truth for channel subplot layout
-[x] 
+[x] `.PDF_tools` - utility for generating multi-page PDFs to document analysis routine output
+
+## +analysis
+
+These analysis routines do specialised data processing and visualisation on the loaded and possibly pre-processed data
+
+[x] `.bursts` - Analysis of bursts in non-epoched spike data
+[ ] `.f012` - Fourier analysis of stimulus-response relationship
+[x] `.states` - State detection analysis of periods of high and low firing rate (per-channel analysis) 
+[ ] `.corr` - Analysis of correlations between spikes (TBD)
 
 
-## Planned Structure
 
-+tools 
-    .load - main method, which calls the following (unless suppressed):
-    .detectSpikes - support threshold and TEO techniques
-    .segmentEpochs - code to parse visual stimulus info from analog-in channel
-    .sort - spike sorting interface (PCA-based)
-
-    <possibly removeCommonMode>
-
-+analysis
-    .f012
-    .linear [pca]
-
-+plots
-    .epochs
-    .heatmap
-    .spikeMetrics
-
-
-## Done
+# Development notes
 
 ### intan RHD load code
 

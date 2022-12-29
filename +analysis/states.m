@@ -31,7 +31,7 @@ function results = states(data, varargin)
 %  .time_fraction  : what fraction of time is spent in each state?
 % 
 % Options: 
-%  -pdf              : generate a PDF documenting the analysis (#TODO)
+%  -pdf              : generate a PDF documenting the analysis
 %  -roi [start end]  : set time analysis window (default: whole wave)
 %  -bins [width]     : set fixed bin width for spikerate 
 %                     (default: auto, 1 spike/bin on average)

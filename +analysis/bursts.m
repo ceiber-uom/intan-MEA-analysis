@@ -29,7 +29,7 @@ function results = bursts(data, varargin)
 % Spike-times may be shifted when re-plotting data 
 % 
 % Options: 
-%  -pdf              : generate a PDF documenting the analysis (#TODO)
+%  -pdf              : generate a PDF documenting the analysis
 %  -cut []           : set explicit isi_threshold for burst detection
 %  -lim [0.02 0.1]   : Set the upper bound of burst ISI center (s), 
 %                              lower bound of non-burst ISIs (s)

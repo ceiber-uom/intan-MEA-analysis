@@ -44,25 +44,30 @@ if any(named('-pdf')), run_PDF_script(data, varargin{:}); return, end
 disp(datestr(now)), disp('Running spike-triggered average analysis')
 
 if any(named('-trig-max')), chan_unit = []; 
-elseif any(named('-trig')), chan_unit = get_('-trig')
-elseif nargin > 1 & isnumeric(varargin{1}), chan_unit = varargin{1}; 
+elseif any(named('-trig')), chan_unit = get_('-trig');
+elseif nargin > 1 && isnumeric(varargin{1}), chan_unit = varargin{1}; 
 else chan_unit = []; 
+end
 
-tfc_opt = {'--ordered'} % For "get spike counts"
-if any(named('-merge')) && ~any(named('-merge-sta')), tfc_opt = [{'-merge'} tfc_opt]; end
+tfc_opt = {'--ordered'}; % For "get spike counts"
+if any(named('-merge')) && ~any(named('-merge-sta')), 
+    tfc_opt = [{'-merge'} tfc_opt]; 
+end
 
 if numel(chan_unit) <= 1 % auto detect
     if ~isempty(chan_unit), tfc_opt = [tfc_opt {'-chan'} chan_unit]; end
-    [chan_unit, spike_count] = tools.forChannels(data, @(d,varargin) length(d.time), tfc_opt{:}); 
+    [chan_unit, spike_count] = tools.forChannels(data, ...
+                                   @(d,varargin) length(d.time), ...
+                                                 tfc_opt{:}); 
     if any(named('-trig-max')), [~,idx] = max(spike_count); 
     else [~,idx] = min(abs(spike_count-mean(spike_count))); 
     end
     chan_unit = chan_unit(idx,:); 
 end
 
-if isstruct(chan_unit), T = chan_unit
+if isstruct(chan_unit), T = chan_unit;
 else
-    [~,T] = tools.forChannels(data, @(d,varargin) d, tfc_opt{1},
+    [~,T] = tools.forChannels(data, @(d,varargin) d, tfc_opt{1}, ...
                             '-chan',chan_unit(1),'-unit',chan_unit(2));
     T.channel_unit = chan_unit; 
 end
@@ -83,18 +88,18 @@ printInfo('f012 analysis (c%d.u%d) ', index, trig.channel_unit);
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
-window = [0.1]
-if any(named('-win')), window = get_('-win'); end
-if numel(window) == 1,     window = linspace(-window(1), window(1), 101)
-elseif numel(window) == 2, window = linspace( window(1), window(2), 101)
-elseif numel(window) == 3, window = linspace( window(1), window(2), window(3))
+win = 0.1;
+if any(named('-win')),  win = get_('-win'); end
+if numel(win) == 1,     win = linspace(-win(1), win(1), 101);
+elseif numel(win) == 2, win = linspace( win(1), win(2), 101);
+elseif numel(win) == 3, win = linspace( win(1), win(2), win(3));
 end
 
 recording_time = [0 inf]; 
 if any(named('-roi')), recording_time = get_('-roi'); end % match .forChannels
 recording_time = estimate_ROI(data, recording_time);
 
-dt = mean(diff(window)); 
+dt = mean(diff(win)); 
 
 sr_hist = [];
 nT = numel(trig.time);
@@ -102,9 +107,9 @@ nT = numel(trig.time);
 for tt = 1:nT
 
     % positive number for delta: channel spike happens after trigger spike
-    delta = data.time-trig.time(tt)
-    sel = (delta >= window(1) & delta <= window(end)); 
-    dy = hist(delta(sel),window); 
+    delta = data.time-trig.time(tt);
+    sel = (delta >= win(1) & delta <= win(end)); 
+    dy = hist(delta(sel),win); %#ok<HIST> 
 
     sr_hist = sr_hist + dy/nT/dt;  
     
@@ -122,13 +127,13 @@ baseline = numel(data.unit) / range(recording_time);
 
 %% Construct output data structure
 
-stats = struct
-stats.channel_unit = index
-stats.is_trigger = all(index == trig.channel_unit)
-stats.n_spikes   = numel(data.time)
-stats.baseline   = baseline
-stats.mean_sta   = sr_hist
-stats.time       = window
+stats = struct;
+stats.channel_unit = index;
+stats.is_trigger = all(index == trig.channel_unit);
+stats.n_spikes   = numel(data.time);
+stats.baseline   = baseline;
+stats.mean_sta   = sr_hist;
+stats.time       = win;
 
 
 %% make empirical ROI window based on observed spike-times 
@@ -165,10 +170,10 @@ for ii = 1:numel(results)
 
     x = results(ii).time([1 1:end end]);
     y = smooth(results(ii).mean_sta,5);
-    b = results(ii).baseline / max(y(:)) * 1.2 + ii
+    b = results(ii).baseline / max(y(:)) * 1.2 + ii;
     y = y/max(y(:))*1.2 + ii; 
 
-    if results(ii).is_trigger, c = C(3,:)
+    if results(ii).is_trigger, c = C(3,:);
     else c = [.7 .7 .7];
     end
 
@@ -180,8 +185,7 @@ axis tight, xl = xlim; plots.tidy, xlim(xl);
 xlabel('time, s'), title('firing rate')
 set(gca,'YColor','none')
 
-%% Second subplot - show just the state-classification for each chan/unit
-
+%% Add Y axis annotations
 chan_unit = cat(1,results.channel_unit);
 
 xd = xl * [1.02; -0.02];
@@ -201,7 +205,7 @@ return
 
 
 %% Script: Loop over this analysis to generate PDF for each channel/unit
-function run_PDF_script(data, varargin{:})
+function run_PDF_script(data, varargin)
 
 named = @(s) strncmpi(s,varargin,numel(s));
 varargin(named('-pdf')) = []; % prevent recursion

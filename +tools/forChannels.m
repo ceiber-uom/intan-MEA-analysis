@@ -50,7 +50,7 @@ if isfield(data,'config')
    if nargout == 0, tools.forWaveType(data, this, varargin{:},'--get-types');
    else [list,varargout{:}] = tools.forWaveType(data, this, varargin{:},'--get-types');
    end
-   list = list.(types{1}); %#ok<USENS> 
+   if nargout > 0, list = list.(types{1}); end %#ok<USENS> 
    return
 end
 

@@ -16,12 +16,14 @@ function results = STA(data, varargin)
 %                    channel contribute to STA density at positive times. 
 % 
 % Options: 
-%  -pdf              : Generate a PDF of this analysis for each channel/unit
-%  -trig [chan unit] : select trigger channel/unit (default: closest to average)
-%  -trig-max         : trigger off the channel/unit with the highest spikerate
-%  -win [t0:t1]      : set spike correlation view window. The default window is
-%                      -0.1 : 0.1 seconds (n=101). The window can also be set by:
-%                      -win [t0] (symmetric), -win [t0 t1], or -win [t0 t1 n] 
+%  -pdf              : Generate a PDF of this figure for each channel/unit
+%  -trig [chan unit] : set trigger channel/unit 
+%                      (default: closest to average)
+%  -trig-max         : trigger off the channel/unit with the most spikes
+%  -win [t0:t1]      : set spike correlation view window. 
+%                      The default window is  -20 : 20 ms (n=101). 
+%                      The window can also be set by:
+%                      -win [t0] (symm), -win [t0 t1], or -win [t0 t1 n] 
 %  -no-plot          : suppress output plot generation
 %  -replot           : re-plot the output results (replace data) possibly
 %                      with different options 
@@ -32,6 +34,8 @@ function results = STA(data, varargin)
 %                     (only legible if the number of channels is small)
 %  -no-pca          : show output image in channel order
 %                     (default: order by similarity)
+%  -pc [1]          : use PCA #n as measure of similarity
+%  -units-s         : show plot in X-axis units of s (default: ms)
 % 
 % (inherited from tools.forChannels)
 % -chan [c1 c2 ... ] : Select channels to analyse
@@ -77,7 +81,8 @@ if numel(chan_unit) <= 1 % auto detect
     else [~,idx] = min(abs(spike_count-mean(spike_count))); 
     end
     chan_unit = chan_unit(idx,:); 
-    fprintf('Selected Trigger: c%d.u%d (%d spikes)\n', chan_unit, spike_count(idx))
+    fprintf('Selected Trigger: c%d.u%d (%d spikes)\n', ...
+                            chan_unit, spike_count(idx))
 end
 
 if isstruct(chan_unit), T = chan_unit;
@@ -103,8 +108,9 @@ printInfo('STA analysis (c%d.u%d) ~ trigger: c%d.u%d ', index, trig.channel_unit
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
-window = 0.1;
+window = 20;
 if any(named('-win')),  window = get_('-win');  end
+if ~any(named('units-s')), window = window / 1e3; end
 
 if numel(window) <= 3
   switch(numel(window)),
@@ -183,7 +189,7 @@ if ~isfinite(time_ROI(2)), time_ROI(2) = derived_ROI(2) + padding; end
 function make_summary_graphic(results, varargin)
 
 named = @(s) strncmpi(s,varargin,numel(s));
-% get_ = @(v) varargin{find(named(v))+1};
+get_ = @(v) varargin{find(named(v))+1};
 
 if any(named('-no-plot')), return, end
 
@@ -211,6 +217,11 @@ if any(named('-hist'))
 else
 
     x = results(1).time;
+    if ~any(named('-units-s')), x = x*1e3; 
+         time_unit = 'ms';
+    else time_unit = 's';
+    end
+
     img = cat(1,results.mean_sta);
     if ~any(named('-raw'))
       img = img ./ cat(1,results.baseline);
@@ -218,7 +229,10 @@ else
 
     if ~any(named('-no-pca'))
          [~,weight] = pca(img);
-         [~,seq] = sort(weight(:,1));
+
+         pc_id = 1;
+         if any(named('-pc')), pc_id = get_('-pc'); end
+         [~,seq] = sort(weight(:,pc_id));
          img = img(seq,:);
     else seq = 1:size(img,1);
     end
@@ -238,7 +252,7 @@ else
 end
 
 axis xy tight, plots.tidy
-xlabel('time, s'), set(gca,'YTick',[]), ylabel('channels')
+xlabel(['time, ' time_unit]), set(gca,'YTick',[]), ylabel('channels')
 
 tcu = results([results.is_trigger]).channel_unit;
 title(sprintf('STA with trigger = c%d.u%d', tcu)) 

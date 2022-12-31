@@ -20,4 +20,4 @@ ba = analysis.bursts(data);
 
 %%
 
-analysis.sta(data)
+plots.STA(data,'-trigger',[])

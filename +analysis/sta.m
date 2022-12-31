@@ -16,6 +16,7 @@ function results = sta(data, varargin)
 %                    channel contribute to STA density at positive times. 
 % 
 % Options: 
+%  -pdf              : Generate a PDF of this analysis for each channel/unit
 %  -trig [chan unit] : select trigger channel/unit (default: closest to average)
 %  -trig-max         : trigger off the channel/unit with the highest spikerate
 %  -win [t0:t1]      : set spike correlation view window. The default window is
@@ -35,10 +36,12 @@ function results = sta(data, varargin)
 
 if nargin == 0, try data = evalin('caller','data'); end, end %#ok<TRYNC> 
 
-disp(datestr(now)), disp('Running spike-triggered average analysis')
-
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
+
+if any(named('-pdf')), run_PDF_script(data, varargin{:}); return, end
+
+disp(datestr(now)), disp('Running spike-triggered average analysis')
 
 if any(named('-trig-max')), chan_unit = []; 
 elseif any(named('-trig')), chan_unit = get_('-trig')
@@ -195,3 +198,26 @@ tcu = chan_unit([results.is_trigger],:);
 title(sprintf('STA with trigger = c%d.u%d', tcu)) 
 
 return
+
+
+%% Script: Loop over this analysis to generate PDF for each channel/unit
+function run_PDF_script(data, varargin{:})
+
+named = @(s) strncmpi(s,varargin,numel(s));
+varargin(named('-pdf')) = []; % prevent recursion
+
+[~,T] = tools.forChannels(data, @(d,varargin) d, varargin{:},'--ordered');
+
+plots.PDF_tools('setup'); 
+
+for ii = 1:numel(T)
+    analysis.sta(data, '-trigger', T(ii), varargin{:})
+    plots.PDF_tools(gcf, 'page-%04d.ps', ii)
+end
+
+plots.PDF_tools('compile','spike-triggered averages (%d).pdf')
+
+
+
+
+

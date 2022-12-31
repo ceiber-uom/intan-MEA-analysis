@@ -2,7 +2,8 @@
 # TODO list
 
 - [ ] implement analysis.f012 (for stim epoch data)
-- [ ] implement spike correlation analysis (TBD)
+- [x] implement spike correlation analysis 
+- [ ] confirm and discuss spike correlation analysis (TBD; e.g. selection of stats/p-values)
 - [ ] implement epoching code for spikes
 - [ ] finish implementing spike detection code
 - [ ] implement forChannels code for waves
@@ -60,6 +61,7 @@ These analysis routines do specialised data processing and visualisation on the 
 - [x] `.bursts` - Analysis of bursts in non-epoched spike data
 - [ ] `.f012` - Fourier analysis of stimulus-response relationship
 - [x] `.states` - State detection analysis of periods of high and low firing rate (per-channel analysis) 
+- [x] `.sta` - Spike-triggered average (of other spikes) - analysis of correlations between spikes
 - [ ] `.corr` - Analysis of correlations between spikes (TBD)
 
 

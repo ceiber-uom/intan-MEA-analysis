@@ -39,6 +39,11 @@ if nargin == 0, try data = evalin('caller','data'); end, end %#ok<TRYNC>
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
+if any(named('-replot')) || isfield(data,'is_trigger')
+    make_summary_graphic(data, varargin{:});
+    return
+end
+
 if any(named('-pdf')), run_PDF_script(data, varargin{:}); return, end
 
 disp(datestr(now)), disp('Running spike-triggered average analysis')
@@ -63,6 +68,7 @@ if numel(chan_unit) <= 1 % auto detect
     else [~,idx] = min(abs(spike_count-mean(spike_count))); 
     end
     chan_unit = chan_unit(idx,:); 
+    fprintf('Selected Trigger: c%d.u%d (%d spikes)\n', chan_unit, spike_count(idx))
 end
 
 if isstruct(chan_unit), T = chan_unit;
@@ -83,23 +89,29 @@ return
 %% per-channel / per-unit analysis
 function stats = run_sta(data, index, trig, varargin)
 
-printInfo('f012 analysis (c%d.u%d) ', index, trig.channel_unit);
+printInfo('STA analysis (c%d.u%d) ~ trigger: c%d.u%d ', index, trig.channel_unit);
 
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
-win = 0.1;
-if any(named('-win')),  win = get_('-win'); end
-if numel(win) == 1,     win = linspace(-win(1), win(1), 101);
-elseif numel(win) == 2, win = linspace( win(1), win(2), 101);
-elseif numel(win) == 3, win = linspace( win(1), win(2), win(3));
+window = 0.1;
+if any(named('-win')),  window = get_('-win'); end
+
+if numel(window) <= 3
+  switch(numel(window)),
+    case 1, window = {-window(1), window(1), 102};
+    case 2, window = { window(1), window(2), 102};
+    case 3, window = { window(1), window(2), window(3)};
+  end
+  window = linspace(window{:});
+  window = conv(window,[1 1]/2,'valid');
 end
 
 recording_time = [0 inf]; 
 if any(named('-roi')), recording_time = get_('-roi'); end % match .forChannels
 recording_time = estimate_ROI(data, recording_time);
 
-dt = mean(diff(win)); 
+dt = mean(diff(window)); 
 
 sr_hist = [];
 nT = numel(trig.time);
@@ -108,17 +120,17 @@ for tt = 1:nT
 
     % positive number for delta: channel spike happens after trigger spike
     delta = data.time-trig.time(tt);
-    sel = (delta >= win(1) & delta <= win(end)); 
-    dy = hist(delta(sel),win); %#ok<HIST> 
+    sel = (delta >= window(1) & delta <= window(end)); 
+    dy = hist(delta(sel),window); %#ok<HIST> 
 
-    sr_hist = sr_hist + dy/nT/dt;  
+    if isempty(sr_hist), sr_hist = zeros(size(dy)); end
+    sr_hist = sr_hist + dy./nT./dt;  
     
     % see if trimming data.time speeds things up?
     % data.time(1:find(sel,1)-1) = []; 
 
     % if epoch data is supplied, a 'control' histogram should also be constructed 
     % by shifting spikes randomly among passes
-
 end
 
 % sr_hist is in units of impulses / second * (n_windows/n_windows)
@@ -133,7 +145,7 @@ stats.is_trigger = all(index == trig.channel_unit);
 stats.n_spikes   = numel(data.time);
 stats.baseline   = baseline;
 stats.mean_sta   = sr_hist;
-stats.time       = win;
+stats.time       = window;
 
 
 %% make empirical ROI window based on observed spike-times 
@@ -158,48 +170,67 @@ if ~isfinite(time_ROI(2)), time_ROI(2) = derived_ROI(2) + padding; end
 function make_summary_graphic(results, varargin)
 
 named = @(s) strncmpi(s,varargin,numel(s));
-get_ = @(v) varargin{find(named(v))+1};
+% get_ = @(v) varargin{find(named(v))+1};
 
 if any(named('-no-plot')), return, end
 
 clf
-smooth = @(x,n) conv(x,ones(1,n)/n,'same');
+smooth = @(x,n) conv2(x,ones(1,n)/n,'same');
 C = lines(7);
 
-for ii = 1:numel(results)
 
-    x = results(ii).time([1 1:end end]);
-    y = smooth(results(ii).mean_sta,5);
-    b = results(ii).baseline / max(y(:)) * 1.2 + ii;
-    y = y/max(y(:))*1.2 + ii; 
+if any(named('-hist'))
+    
+    for ii = 1:numel(results)
+    
+        x = results(ii).time([1 1:end end]);
+        y = smooth(results(ii).mean_sta,5);
+        b = results(ii).baseline / max(y(:)) * 1.2 + ii;
+        y = y/max(y(:))*1.2 + ii; 
+    
+        if results(ii).is_trigger, c = C(3,:);
+        else c = [.7 .7 .7];
+        end
+    
+        fill(x, [ii y ii], c, 'EdgeColor','none','FaceAlpha',0.8),  hold on
+        plot(x([1 end]), [b b],'-','Color',[c 0.3])
+    end
+else
 
-    if results(ii).is_trigger, c = C(3,:);
-    else c = [.7 .7 .7];
+    x = results(1).time;
+    img = cat(1,results.mean_sta);
+    if ~any(named('-raw'))
+      img = img ./ cat(1,results.baseline);
     end
 
-    fill(x, [ii y ii], c, 'EdgeColor','none','FaceAlpha',0.8),  hold on
-    plot(x([1 end]), [b b],'-','Color',[c 0.3])
+    if ~any(named('-no-pca'))
+         [~,weight] = pca(img);
+         [~,seq] = sort(weight(:,1));
+         img = img(seq,:);
+    else seq = 1:size(img,1);
+    end
+
+    nnz = mean(img~=0,2);
+    nnz_threshold = 0.25; 
+
+    img = img(nnz>=nnz_threshold,:);
+    seq = seq(nnz>=nnz_threshold);
+
+    % img = smooth(img,5);
+
+    imagesc(x, 1:size(img,1), img,'userdata',seq)
+    caxis([0 quantile(img(:),0.99)])
+    hold on
+
 end
 
-axis tight, xl = xlim; plots.tidy, xlim(xl); 
-xlabel('time, s'), title('firing rate')
-set(gca,'YColor','none')
+axis xy tight, xl = xlim; plots.tidy
+xlabel('time, s'), set(gca,'YTick',[]), ylabel('channels')
 
-%% Add Y axis annotations
-chan_unit = cat(1,results.channel_unit);
-
-xd = xl * [1.02; -0.02];
-
-for cc = 1:max(chan_unit(:,1))
-    sel = find(chan_unit(:,1) == cc);
-    if ~any(sel), continue, end
-  
-    text(2*xd, mean(sel), sprintf('c%d', cc),'Color',[.2 .2 .2],'FontSize',6,'Horiz','right')
-    plot([xd xd], [min(sel) max(sel)], 'Color', [.2 .2 .2], 'LineWidth', 1.1,'clipping','off')
-end
-
-tcu = chan_unit([results.is_trigger],:);
+tcu = results([results.is_trigger]).channel_unit;
 title(sprintf('STA with trigger = c%d.u%d', tcu)) 
+
+%%
 
 return
 

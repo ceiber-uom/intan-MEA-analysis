@@ -14,10 +14,10 @@ msa = analysis.states(data, '-roi', [0 500], ...
 
 %% 
 
-all_ba = analysis.bursts(data); 
+ba = analysis.bursts(data); 
 
 % ba = analysis.burstAnalysis(data, '-chan', 57, '-unit', 4);
 
 %%
 
-analysis.sta(data           )
+analysis.sta(data)

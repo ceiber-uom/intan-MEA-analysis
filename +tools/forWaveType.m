@@ -53,3 +53,7 @@ for ty = types(do_type)
     end
   end
 end
+
+if any(named('--GET-TYPES')), 
+    assignin('caller','types',types(do_type));
+end

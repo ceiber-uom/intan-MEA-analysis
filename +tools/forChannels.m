@@ -47,9 +47,10 @@ get_ = @(v) varargin{find(named(v))+1};
 if isfield(data,'config')
    varargout = cell(1,nargout-1);
    this = @(d) tools.forChannels(d, fun, varargin{:});
-   if nargout == 0, tools.forWaveType(data, this, varargin{:});
-   else [list,varargout{:}] = tools.forWaveType(data, this, varargin{:});
+   if nargout == 0, tools.forWaveType(data, this, varargin{:},'--get-types');
+   else [list,varargout{:}] = tools.forWaveType(data, this, varargin{:},'--get-types');
    end
+   list = list.(types{1}); %#ok<USENS> 
    return
 end
 

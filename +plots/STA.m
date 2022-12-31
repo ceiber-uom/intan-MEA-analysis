@@ -1,5 +1,5 @@
-function results = sta(data, varargin)
-% results = analysis.sta( spike_data, [trigger], ... )
+function results = STA(data, varargin)
+% results = plots.STA( spike_data, [trigger], ... )
 % 
 % Run a spike-triggered average analysis to look at correlations
 % between a selected spike  (the 'trigger' spike) and the other
@@ -23,6 +23,15 @@ function results = sta(data, varargin)
 %                      -0.1 : 0.1 seconds (n=101). The window can also be set by:
 %                      -win [t0] (symmetric), -win [t0 t1], or -win [t0 t1 n] 
 %  -no-plot          : suppress output plot generation
+%  -replot           : re-plot the output results (replace data) possibly
+%                      with different options 
+% 
+% Visualisation options: 
+%  -raw             : show output without scaling to +- baseline
+%  -hist            : show stack-of-histograms output 
+%                     (only legible if the number of channels is small)
+%  -no-pca          : show output image in channel order
+%                     (default: order by similarity)
 % 
 % (inherited from tools.forChannels)
 % -chan [c1 c2 ... ] : Select channels to analyse
@@ -95,7 +104,7 @@ named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
 window = 0.1;
-if any(named('-win')),  window = get_('-win'); end
+if any(named('-win')),  window = get_('-win');  end
 
 if numel(window) <= 3
   switch(numel(window)),
@@ -104,14 +113,18 @@ if numel(window) <= 3
     case 3, window = { window(1), window(2), window(3)};
   end
   window = linspace(window{:});
-  window = conv(window,[1 1]/2,'valid');
+  time = conv(window,[1 1]/2,'valid');
+else
+    time = window; 
+    window = conv(window,[1 1]/2,'valid');
+    window = [2*window(1)-window(2) window ...
+              2*window(end) - window(end-1)];
 end
 
 recording_time = [0 inf]; 
 if any(named('-roi')), recording_time = get_('-roi'); end % match .forChannels
 recording_time = estimate_ROI(data, recording_time);
-
-dt = mean(diff(window)); 
+dt = mean(diff(time)); 
 
 sr_hist = [];
 nT = numel(trig.time);
@@ -121,7 +134,7 @@ for tt = 1:nT
     % positive number for delta: channel spike happens after trigger spike
     delta = data.time-trig.time(tt);
     sel = (delta >= window(1) & delta <= window(end)); 
-    dy = hist(delta(sel),window); %#ok<HIST> 
+    dy = hist(delta(sel),time); %#ok<HIST> 
 
     if isempty(sr_hist), sr_hist = zeros(size(dy)); end
     sr_hist = sr_hist + dy./nT./dt;  
@@ -145,7 +158,7 @@ stats.is_trigger = all(index == trig.channel_unit);
 stats.n_spikes   = numel(data.time);
 stats.baseline   = baseline;
 stats.mean_sta   = sr_hist;
-stats.time       = window;
+stats.time       = time;
 
 
 %% make empirical ROI window based on observed spike-times 
@@ -224,7 +237,7 @@ else
 
 end
 
-axis xy tight, xl = xlim; plots.tidy
+axis xy tight, plots.tidy
 xlabel('time, s'), set(gca,'YTick',[]), ylabel('channels')
 
 tcu = results([results.is_trigger]).channel_unit;

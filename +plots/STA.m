@@ -36,6 +36,7 @@ function results = STA(data, varargin)
 %                     (default: order by similarity)
 %  -pc [1]          : use PCA #n as measure of similarity
 %  -units-s         : show plot in X-axis units of s (default: ms)
+%  -label           : toggle channel labels
 % 
 % (inherited from tools.forChannels)
 % -chan [c1 c2 ... ] : Select channels to analyse
@@ -197,70 +198,102 @@ clf
 smooth = @(x,n) conv2(x,ones(1,n)/n,'same');
 C = lines(7);
 
+x = results(1).time;
+if ~any(named('-units-s')), x = x*1e3; 
+     time_unit = 'ms';
+else time_unit = 's';
+end
+
 
 if any(named('-hist'))
-    
-    for ii = 1:numel(results)
-    
-        x = results(ii).time([1 1:end end]);
-        y = smooth(results(ii).mean_sta,5);
-        b = results(ii).baseline / max(y(:)) * 1.2 + ii;
-        y = y/max(y(:))*1.2 + ii; 
-    
-        if results(ii).is_trigger, c = C(3,:);
-        else c = [.7 .7 .7];
-        end
-    
-        fill(x, [ii y ii], c, 'EdgeColor','none','FaceAlpha',0.8),  hold on
-        plot(x([1 end]), [b b],'-','Color',[c 0.3])
+  x = x([1 1:end end]);
+  for ii = 1:numel(results)
+
+    if results(ii).is_trigger && ~any(named('-keep-autocorr'))
+      results(ii).mean_sta(results(ii).time == 0) = 0;
     end
+
+    y = smooth(results(ii).mean_sta,5);
+    b = results(ii).baseline / max(y(:)) * 1.2 + ii;
+    y = y/max(y(:))*1.2 + ii; 
+
+    if results(ii).is_trigger, c = C(3,:);
+    else c = [.7 .7 .7];
+    end
+
+    fill(x, [ii y ii], c, 'EdgeColor','none','FaceAlpha',0.8),  hold on
+    plot(x([1 end]), [b b           ],'-','Color',[c 0.3])
+  end
 else
 
-    x = results(1).time;
-    if ~any(named('-units-s')), x = x*1e3; 
-         time_unit = 'ms';
-    else time_unit = 's';
-    end
+  img = cat(1,results.mean_sta);
+  if ~any(named('-raw'))
+    img = img ./ cat(1,results.baseline);
+  end
 
-    img = cat(1,results.mean_sta);
-    if ~any(named('-raw'))
-      img = img ./ cat(1,results.baseline);
-    end
+  if ~any(named('-no-pca'))
+       [~,weight] = pca(img);
 
-    if ~any(named('-no-pca'))
-         [~,weight] = pca(img);
+       pc_id = 1;
+       if any(named('-pc')), pc_id = get_('-pc'); end
+       [~,seq] = sort(weight(:,pc_id));
+       img = img(seq,:);
+  else seq = 1:size(img,1);
+  end
 
-         pc_id = 1;
-         if any(named('-pc')), pc_id = get_('-pc'); end
-         [~,seq] = sort(weight(:,pc_id));
-         img = img(seq,:);
-    else seq = 1:size(img,1);
-    end
+  nnz = mean(img~=0,2);
+  nnz_threshold = 0.25; 
 
-    nnz = mean(img~=0,2);
-    nnz_threshold = 0.25; 
-
-    img = img(nnz>=nnz_threshold,:);
-    seq = seq(nnz>=nnz_threshold);
+  img = img(nnz>=nnz_threshold,:);
+  seq = seq(nnz>=nnz_threshold);
 
     % img = smooth(img,5);
 
-    imagesc(x, 1:size(img,1), img,'userdata',seq)
-    caxis([0 quantile(img(:),0.99)])
-    hold on
+  h = imagesc(x, 1:size(img,1), img,'userdata',seq);
+  caxis([0 quantile(img(:),0.99)])
+  hold on
+
+  if any(named('-label'))
+    xt = xlim * [-0.02 -0.04; 1.02 1.04];
+    cu = cat(1,results(seq).channel_unit);
+    for ii = 1:numel(seq)
+      text(xt(mod(ii,2)+1), ii, sprintf('c%d.%d',cu(ii,:)),'FontSize',6)
+    end
+  end
+
+  if ~any(named('-no-in'))
+    set(h,'ButtonDownFcn',@(a,b)write_channel(a,b,results(seq),time_unit));
+  end
 
 end
 
 axis xy tight, plots.tidy
 xlabel(['time, ' time_unit]), set(gca,'YTick',[]), ylabel('channels')
 
-tcu = results([results.is_trigger]).channel_unit;
-title(sprintf('STA with trigger = c%d.u%d', tcu)) 
+sel = [results.is_trigger];
+
+if any(sel), 
+     tcu = results(sel).channel_unit;
+     title(sprintf('STA with trigger = c%d.u%d', tcu)) 
+else title('STA')
+end
+
+
 
 %%
 
 return
 
+%% UI function
+function write_channel(hobj,event,results,ms)
+
+ip = round(event.IntersectionPoint(2)); 
+[~,ix] = min(abs(hobj.XData-event.IntersectionPoint(1)));
+
+fprintf('c%d.%d @ %0.2f %s: %0.4f\n', results(ip).channel_unit, ...
+         hobj.XData(ix), ms, hobj.CData(ip,ix))
+
+return
 
 %% Script: Loop over this analysis to generate PDF for each channel/unit
 function run_PDF_script(data, varargin)

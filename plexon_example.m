@@ -1,4 +1,7 @@
+
+
 clear
+
 list = dir('../Pro*/*.xlsx'); % .csv
 p_ = @(x) [x.folder filesep x.name]; % path expander
 
@@ -20,4 +23,4 @@ ba = analysis.bursts(data);
 
 %%
 
-plots.STA(data,'-trigger',[])
+plots.STA(data,'-trigger',[38 1],'-label')

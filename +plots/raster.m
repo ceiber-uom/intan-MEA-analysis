@@ -18,6 +18,7 @@ function raster (data, varargin)
 % -no-epochs           Plot all spikes on a single axes, time vs. channel
 % -expand-units        Expand out the different units (for visibility)
 %                      enabled by default if epoch mode disabled. 
+% -isi                 View raster as time versus ISI (use plots.ISI)
 % -shape [n]           Colour spikes by the Nth column of 'data.shape'
 %                      (see tools.readPlexon and the source data file)
 % v0.1 - 23 December 2022 - Calvin Eiber <c.eiber@ieee.org>
@@ -29,6 +30,11 @@ if isfield(data,'config')
    this = @(d) plots.raster(d, varargin{:});
    tools.forWaveType(data, this, varargin{:});
    return
+end
+
+if any(named('-isi'))
+    plots.ISI(data, varargin{:}, '-raster');
+    return
 end
 
 channel_map = plots.layout(data, varargin{:});

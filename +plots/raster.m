@@ -61,6 +61,8 @@ if any(named('-shape')), do_shape_var = get_('-shape'); end
 if ~isfield(data,'epoch') || ~any(named('-no-e'))
     %% Basic raster plot
     
+    include = include & ismember(data.channel,channel_map(:));
+
     y = data.channel(include); 
     if ~any(named('-ex')), 
         y = y + data.unit(include)/(u_max+1)-0.5; 
@@ -74,7 +76,11 @@ if ~isfield(data,'epoch') || ~any(named('-no-e'))
     if isempty(do_shape_var), 
       caxis([0 u_max]), colormap([.5 .5 .5; lines(u_max)]); 
     end
-    plots.tidy
+
+    v_ = @(x) reshape(x,[],1);
+    yl = [min(v_(channel_map(channel_map>0))) max(channel_map(:))];
+
+    plots.tidy, ylim(yl + [-1.5 0.5])
 
     xlabel('time, s'), ylabel('channel ID')
     if isempty(do_shape_var), ylabel(colorbar,'unit ID'); end

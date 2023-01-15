@@ -99,7 +99,9 @@ end
 
 %%
 
-img = y_data(channel_map); 
+img = channel_map;
+img(img>0) = y_data(channel_map(img > 0));
+% img = y_data(channel_map); 
 
 cla reset, imagesc(img')
 axis image ij off
@@ -115,6 +117,7 @@ label_none = any(named('-no-l'));
 for cc = 1:nC
   if label_none, break, end
   [a,b] = find(channel_map == cc);
+  if isempty(a), continue, end
   do_label = label_all || ...
          (a == 1 || a == size(channel_map,1)) && ...
          (b == 1 || b == size(channel_map,2));

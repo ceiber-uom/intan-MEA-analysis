@@ -15,7 +15,7 @@ function map = layout(data, varargin)
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
-if isfield(data,'data'),        nC = size(data.wave,2);
+if isfield(data,'wave'),        nC = size(data.wave,2);
 elseif isfield(data,'channel'), nC = max(data.channel(:));
 else error('unable to determine channels')
 end

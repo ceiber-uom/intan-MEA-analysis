@@ -1,6 +1,11 @@
 
 clear
-list = dir('../*/*.rhd');
+% list = dir('../*/*.rhd');
+
+ks_path = ['\\shared.sydney.edu.au\research-data\PRJ-vnrg2019\' ...
+                              'V19_transfer\Calvin\MEA\TestKS\'];
+
+list = dir([ks_path '/*.rhd']);
 
 p_ = @(x) [x.folder filesep x.name]; % path expander
 

@@ -98,7 +98,7 @@ if index(2) > 0, color = lines(index(2)); color = color(end,:);
 else color = [.6 .6 .6];
 end
 
-style = {color,'FaceAlpha',0.5,'EdgeColor','none'};
+style = {color,'FaceAlpha',0.5,'EdgeColor',color};
 if opts.merge, style{3} = 1; end
 
 for pp = 1:nP
@@ -112,7 +112,7 @@ for pp = 1:nP
         y = conv(y,ones(1,opts.n_smooth)/opts.n_smooth,'same'); 
     end
 
-    x = [bins-dx;bins+dx]; x = x([1 1:end end]);
+    x = [bins-dx;bins+dx]; x = x([1 1:end end])/1e3;
     y = [y;y]; y = [0; y(:); 0]; %#ok<AGROW> 
 
     fill(x,y,style{:},'userdata',[index pp])

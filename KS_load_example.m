@@ -9,17 +9,21 @@ data = tools.readIntan(list,'ADC',1); % read multiple files and merge
 data = tools.readKS(data,'-quality',4); % read ks_sorted spike file
 
 %%
-ed = tools.segmentEpochs(data); % epoched data
+epoched = tools.segmentEpochs(data); % epoched data
 
 %%
 
 % plots.raster(ed); % ,'-per-unit'
 
 clf
-plots.psth(ed) % ,'-per-unit' to see every unit on a seperate axis
+% plots.psth(ed)
+
+plots.psth(epoched,'-per-unit'); %  to see every unit on a seperate axis
 
 
-%% Zoom into a set of units on a pair of channels (arbitrarially chosen)
+%% Zoom into a set of units on a pair of channels 
+
+% get(gco,'userdata') % return the [channel unit_id pass_id] of a selected histogram
 
 clf
-plots.psth(ed,'-unit',90:100,'-label','-chan',13:14)
+plots.psth(epoched,'-per-unit','-unit',17:22,'-chan',16:21); %  see just these units

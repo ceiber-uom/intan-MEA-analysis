@@ -97,12 +97,12 @@ end
 if any(named('-pass')), pass_ok = get_('-pass');
 elseif ~isfield(data,'pass')
      data.pass = ones(size(data.time));
-     pass_ok = true;
+     pass_ok = 1;
 elseif isfield(data,'data'), % for wave data
      pass_ok = true(size(data.wave,3),1);
-else pass_ok = true(size(data.time)); % for spike data
+else pass_ok = 1:max(data.pass); % for spike data
 end
-if ~islogical(pass_ok), pass_ok = ismember(1:max(data.pass), pass_ok); end
+if ~islogical(pass_ok), pass_ok = ismember(data.pass, pass_ok); end
 if any(pass_ok), include = include & pass_ok; end
 
 if numel(channel_map) > 1 && opts.do_subplot, clf, end
@@ -112,7 +112,7 @@ for pp = 1:numel(channel_map)
     if channel_map(pp) == 0, continue, end
     
     cc = channel_map(pp);
-    this_channel = (include & data.channel == cc & pass_ok(data.pass)); 
+    this_channel = (include & data.channel == cc); 
     if ~opts.hash, this_channel = this_channel & data.unit > 0; end
 
     if ~any(this_channel) && opts.skip_empty, continue, end

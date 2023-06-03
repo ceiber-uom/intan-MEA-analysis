@@ -41,9 +41,7 @@ if any(named('-isi'))
 end
 
 if any(named('-per-u'))
-
-
-
+    [~,~,data.channel] = unique([data.channel data.unit],'rows');
 end
 
 channel_map = plots.layout(data, varargin{:});
@@ -65,7 +63,7 @@ do_shape_var = [];
 if any(named('-shape')), do_shape_var = get_('-shape'); end
 
 %%
-if ~isfield(data,'epoch') || any(named('-no-e'))
+if ~isfield(data,'pass') || any(named('-no-e'))
     %% Basic raster plot without epoching
 
 
@@ -108,18 +106,18 @@ end
 %% One-per-channel raster plots
 
 if any(named('-pass')), pass_ok = get_('-pass');
-elseif ~isfield(data,'epoch')
-     data.epoch = ones(size(data.time));
-     data.epoch_onset = 0; 
+elseif ~isfield(data,'pass')
+     data.pass = ones(size(data.time));
+     data.pass_begin = 0; 
      pass_ok = true;
-else pass_ok = true(max(data.epoch),1);
+else pass_ok = true(max(data.pass),1);
 end
 if ~islogical(pass_ok)
     pass_ok = ismember(1:max(data.pass), pass_ok); 
 end
 
 pass_ok = [false; pass_ok];
-pass_t0 = [0; data.epoch_onset];
+pass_t0 = [0; data.pass_begin];
 
 subplot_nxy = num2cell(size(channel_map));
 opts.ticks = (numel(channel_map) > 6) == any(named('-ti'));
@@ -130,11 +128,11 @@ for pp = 1:numel(channel_map)
     if channel_map(pp) == 0, continue, end
 
     cc = channel_map(pp); 
-    ok = (include & data.channel == cc & pass_ok(data.epoch+1)); 
+    ok = (include & data.channel == cc & pass_ok(data.pass+1)); 
     
     if numel(time_window) >= 2
         if ~any(ok), continue, end
-        t = data.time(ok) - pass_t0(data.epoch(ok)+1);
+        t = data.time(ok) - pass_t0(data.pass(ok)+1);
         ok(ok) = (t >= min(time_window) & t <= max(time_window));
     end
 
@@ -143,13 +141,13 @@ for pp = 1:numel(channel_map)
     else cla reset
     end
 
-    y = data.epoch(ok); 
+    y = double(data.pass(ok)); 
     if any(named('-ex')), y = y+double(data.unit(ok))/u_max-0.5; end 
 
     u = double(data.unit(ok));
     if ~isempty(do_shape_var), u = data.shape(ok,do_shape_var); end
 
-    t = data.time(ok) - pass_t0(data.epoch(ok)+1);
+    t = data.time(ok) - pass_t0(data.pass(ok)+1);
 
     
 

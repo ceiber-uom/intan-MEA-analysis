@@ -248,9 +248,9 @@ for channel_type = reshape(data_fields, 1, [])
        this.TimeInfo = source.TimeInfo;
        this.DataInfo = source.DataInfo;
   elseif all(isfield(source,{'time','channel','unit'})) % SPIKE 
-    %% Add .epoch to spikes but don't make other changes
+    %% Add .pass to spikes but don't make other changes
     this = source;
-    this.epoch = zeros(size(this.time)); 
+    this.pass = zeros(size(this.time)); 
 
     fs = mean((epochs.finish-epochs.start)./epochs.duration);
 
@@ -258,10 +258,10 @@ for channel_type = reshape(data_fields, 1, [])
       roi = epochs.start(tt) + [epochs.frame_size(1) epochs.frame_size(2)];
     
       sel = this.time >= roi(1)/fs & this.time <= roi(2)/fs;
-      this.epoch(sel) = tt;
+      this.pass(sel) = tt;
     end
 
-    this.epoch_onset = epochs.start/fs;
+    this.pass_begin = epochs.start/fs;
 
     data.(channel_type{1}) = this; 
     continue

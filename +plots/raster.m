@@ -18,10 +18,13 @@ function raster (data, varargin)
 % -no-epochs           Plot all spikes on a single axes, time vs. channel
 % -expand-units        Expand out the different units (for visibility)
 %                      enabled by default if epoch mode disabled. 
+% -per-unit            One panel per unit (default: one per channel)
 % -isi                 View raster as time versus ISI (use plots.ISI)
 % -shape [n]           Colour spikes by the Nth column of 'data.shape'
 %                      (see tools.readPlexon and the source data file)
-% v0.1 - 23 December 2022 - Calvin Eiber <c.eiber@ieee.org>
+% 
+% v0.1 - 4 June 2023 - Calvin Eiber <c.eiber@ieee.org>
+
 
 named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
@@ -37,15 +40,19 @@ if any(named('-isi'))
     return
 end
 
+if any(named('-per-u'))
+
+
+
+end
+
 channel_map = plots.layout(data, varargin{:});
 
-if any(named('-roi')), include = get('-roi'); 
-    if numel(include) == 2
-        include = (data.time >= min(include) & ...
-                 data.time <= max(include));
-    end
-else include = true(size(data.time)); 
+if any(named('-roi')), time_window = get('-roi'); 
+else time_window = []; 
 end
+
+include = true(size(data.time)); 
 
 if any(named('-unit')), u_roi = get('-unit'); 
   if isnumeric(u_roi), u_roi = ismember(data.unit, u_roi); end
@@ -60,6 +67,13 @@ if any(named('-shape')), do_shape_var = get_('-shape'); end
 %%
 if ~isfield(data,'epoch') || any(named('-no-e'))
     %% Basic raster plot without epoching
+
+
+    if numel(time_window) >= 2
+        include = include & (data.time >= min(include) & ...
+                             data.time <= max(include));
+    end
+
     
     include = include & ismember(data.channel,channel_map(:));
 
@@ -118,6 +132,12 @@ for pp = 1:numel(channel_map)
     cc = channel_map(pp); 
     ok = (include & data.channel == cc & pass_ok(data.epoch+1)); 
     
+    if numel(time_window) >= 2
+        if ~any(ok), continue, end
+        t = data.time(ok) - pass_t0(data.epoch(ok)+1);
+        ok(ok) = (t >= min(time_window) & t <= max(time_window));
+    end
+
     if ~any(ok), continue, end
     if numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
     else cla reset
@@ -130,6 +150,8 @@ for pp = 1:numel(channel_map)
     if ~isempty(do_shape_var), u = data.shape(ok,do_shape_var); end
 
     t = data.time(ok) - pass_t0(data.epoch(ok)+1);
+
+    
 
     scatter(t, y, [], u, '.')
     if isempty(do_shape_var), 

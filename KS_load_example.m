@@ -19,4 +19,8 @@ ed = tools.segmentEpochs(data); % epoched data
 
 %%
 
-plots.raster(ed)
+% plots.raster(ed)
+
+plots.psth(ed)
+
+%

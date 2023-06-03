@@ -52,20 +52,21 @@ if any(named('-unit')), u_roi = get('-unit');
   if any(u_roi), include = include & u_roi; end
 end
 
-u_max = max(data.unit(:));
+u_max = double(max(data.unit(:)));
 
 do_shape_var = [];
 if any(named('-shape')), do_shape_var = get_('-shape'); end
 
 %%
-if ~isfield(data,'epoch') || ~any(named('-no-e'))
-    %% Basic raster plot
+if ~isfield(data,'epoch') || any(named('-no-e'))
+    %% Basic raster plot without epoching
     
     include = include & ismember(data.channel,channel_map(:));
 
-    y = data.channel(include); 
+    y = double(data.channel(include)); 
     if ~any(named('-ex')), 
-        y = y + data.unit(include)/(u_max+1)-0.5; 
+        unit_offset = double(data.unit(include))./(u_max+1)-0.5;
+        y = y + unit_offset; 
     end
 
     u = data.unit(include);
@@ -73,12 +74,15 @@ if ~isfield(data,'epoch') || ~any(named('-no-e'))
 
     cla reset
     scatter(data.time(include), y, [], u, '.')
-    if isempty(do_shape_var), 
-      caxis([0 u_max]), colormap([.5 .5 .5; lines(u_max)]); 
+    if isempty(do_shape_var), caxis([0 u_max]),
+      if u_max > 7
+           colormap([.5 .5 .5; turbo(u_max)]); 
+      else colormap([.5 .5 .5; lines(u_max)]); 
+      end
     end
 
     v_ = @(x) reshape(x,[],1);
-    yl = [min(v_(channel_map(channel_map>0))) max(channel_map(:))];
+    yl = double([min(v_(channel_map(channel_map>0))) max(channel_map(:))]);
 
     plots.tidy, ylim(yl + [-1.5 0.5])
 
@@ -90,14 +94,18 @@ end
 %% One-per-channel raster plots
 
 if any(named('-pass')), pass_ok = get_('-pass');
-elseif ~isfield(data,'pass')
-     data.pass = ones(size(data.time));
+elseif ~isfield(data,'epoch')
+     data.epoch = ones(size(data.time));
+     data.epoch_onset = 0; 
      pass_ok = true;
-else pass_ok = true(size(data.data,3),1);
+else pass_ok = true(max(data.epoch),1);
 end
 if ~islogical(pass_ok)
     pass_ok = ismember(1:max(data.pass), pass_ok); 
 end
+
+pass_ok = [false; pass_ok];
+pass_t0 = [0; data.epoch_onset];
 
 subplot_nxy = num2cell(size(channel_map));
 opts.ticks = (numel(channel_map) > 6) == any(named('-ti'));
@@ -108,20 +116,22 @@ for pp = 1:numel(channel_map)
     if channel_map(pp) == 0, continue, end
 
     cc = channel_map(pp); 
-    ok = (include & data.channel == cc & pass_ok(data.pass)); 
+    ok = (include & data.channel == cc & pass_ok(data.epoch+1)); 
     
     if ~any(ok), continue, end
     if numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
     else cla reset
     end
 
-    y = data.pass(ok); 
-    if any(named('-ex')), y = y+data.unit(ok)/u_max-0.5; end 
+    y = data.epoch(ok); 
+    if any(named('-ex')), y = y+double(data.unit(ok))/u_max-0.5; end 
 
-    u = data.unit(ok);
+    u = double(data.unit(ok));
     if ~isempty(do_shape_var), u = data.shape(ok,do_shape_var); end
 
-    scatter(data.time(ok), y, [], u, '.')
+    t = data.time(ok) - pass_t0(data.epoch(ok)+1);
+
+    scatter(t, y, [], u, '.')
     if isempty(do_shape_var), 
       caxis([0 u_max]), colormap([.5 .5 .5; lines(u_max)]); 
     end
@@ -137,11 +147,7 @@ end
 
 h = get(gcf,'Children');
 
-if size(y,2) > 1 && dy > 0
-     set(h,'YLim',[-0.75 size(y,2)-0.5]*dy)
-else set(h,'YLim',[-1.01 1]*max(abs([h.YLim])));
-end
-
+set(h,'YLim',[0.5 max(abs([h.YLim]))])
 linkaxes(h,'xy')
 pos = cat(1,h.Position);
 

@@ -54,6 +54,11 @@ named = @(n) strncmpi(varargin,n,length(n));
 get_ = @(v) varargin{find(named(v))+1};
 
 if nargin < 1, filename = '?'; end
+if iscell(filename) || isstruct(filename)
+    output = read_multiple_files( filename, varargin{:} );
+    return
+end
+
 if ~exist(filename,'file')
     [fn,fp] = uigetfile('*.rhd',[],filename);
     if ~any(fn), error('Cancelled'), end
@@ -627,3 +632,42 @@ rhs = repmat(' ',1,w-numel(lhs)-1);
 ff = floor(10*mod(frac*w,1));
 
 printInfo('[%s%d%s] ',lhs,ff,rhs)
+
+
+function data = read_multiple_files( list, varargin )
+
+if isstruct(list)
+    assert(all(isfield(list,{'name','folder'})), ...
+            'struct input to tools.readIntan should match that output by dir()')
+    p_ = @(x) [x.folder filesep x.name]; % path expander
+
+    list = arrayfun(p_,list,'UniformOutput',false);
+
+end
+
+data = cellfun(@(p) tools.readIntan( p, varargin{:} ), list);
+
+for ff = 2:numel(data)
+ for sig = {'AMP','AUX','VOLT','ADC','DI','DO','TEMP'}
+  signal = sig{1};
+  if ~isfield(data(1),signal), continue, end
+
+  if data(1).(signal).time(end) >= data(ff).(signal).time(1)
+      warning('time overlap')
+  end
+
+  data(1).(signal).time = [data(1).(signal).time data(ff).(signal).time];
+  data(1).(signal).wave = [data(1).(signal).wave;data(ff).(signal).wave];
+  % data(1).(signal).TimeInfo(1,end+1) = data(ff).(signal).TimeInfo;
+  % data(1).(signal).DataInfo(1,end+1) = data(ff).(signal).DataInfo;
+
+ end
+end
+
+data = data(1); 
+data.filename_list = {data.filename};
+
+return
+
+
+

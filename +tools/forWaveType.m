@@ -33,6 +33,7 @@ out = varargout;
 varargout = cellfun(@(x) struct, varargout,'unif',0);
 
 do_type = cellfun(@(t) any(named(t)), types); 
+if any(named('ALL')), do_type(:) = true; end
 
 if ~any(do_type), % default: do the first specified wave type 
     % this is almost always what the user wanted to do. 

@@ -80,15 +80,23 @@ epochs.units = struct;
 
 dd = sort([opts.threshold_min opts.threshold_max]); 
 
+if isa(trig,'timeseries'),   trig_data = trig.data;
+elseif isfield(trig,'Wave'), trig_data = trig.Wave(:,1);
+elseif isfield(trig,'Data'), trig_data = trig.Data;
+elseif isfield(trig,'wave'), trig_data = trig.wave(:,1);
+elseif isfield(trig,'data'), trig_data = trig.data;
+else disp(trig), error('unclear how to parse trigger object')
+end
+
 %%
 stim_active = false; 
 for tt = 1:length(trig.time)
   if stim_active
-    if trig.data(tt) > dd(1), continue, end
+    if trig_data(tt) > dd(1), continue, end
     epochs.finish(end+1,1) = tt;
     stim_active = false;
   else
-    if trig.data(tt) < dd(2), continue, end
+    if trig_data(tt) < dd(2), continue, end
     epochs.start(end+1,1) = tt;
     stim_active = true;
   end
@@ -121,10 +129,32 @@ end
 
 %% Determine pre/post frame 
 
-n_sam_active = mean(epochs.finish - epochs.start);
-n_sam_gap = mean(diff(epochs.start)) - n_sam_active;
-n_sam_pre = floor(opts.before_fraction * n_sam_gap);
-n_sam_post = ceil((1-opts.before_fraction) * n_sam_gap);
+n_sam_active = (epochs.finish - epochs.start);
+n_sam_delta_onset = diff([epochs.start;numel(trig_data)]);
+n_sam_gap = n_sam_delta_onset - n_sam_active;
+
+potential_problem = (n_sam_active > median(n_sam_delta_onset));
+
+if any(potential_problem)
+    % in effect we play fast and loose with the meaning of 
+    % opts.before_fraction in this case. 
+
+    if verbose, 
+        warning(['%d stimuli have durations greater than the median ' ...
+                    'inter-stimulus interval. these may get cut off ' ...
+                    'during epoching'], sum(potential_problem))
+    end
+
+    [n_sam_active,sid] = max(n_sam_active .* ~potential_problem);
+    n_sam_gap    = n_sam_gap(sid);
+    n_sam_pre = floor(opts.before_fraction * n_sam_gap);
+    n_sam_post = ceil((1-opts.before_fraction) * n_sam_gap);
+else
+    n_sam_active = ceil(mean(n_sam_active));
+    n_sam_gap    = mean(n_sam_gap);
+    n_sam_pre = floor(opts.before_fraction * n_sam_gap);
+    n_sam_post = ceil((1-opts.before_fraction) * n_sam_gap);
+end
 
 epochs.frame_size = round([-n_sam_pre n_sam_active + n_sam_post]);
 
@@ -135,7 +165,7 @@ v_ = @(x) reshape(x,[],1); % vertical vector
 for ii = 1:numel(epochs.start)
 
     t = trig.time(epochs.start(ii):epochs.finish(ii));
-    y = trig.data(epochs.start(ii):epochs.finish(ii));
+    y = trig_data(epochs.start(ii):epochs.finish(ii));
 
     t = t - t(1); 
     epochs.duration(ii,1) = t(end);
@@ -217,10 +247,29 @@ for channel_type = reshape(data_fields, 1, [])
        this.name = source.name;
        this.TimeInfo = source.TimeInfo;
        this.DataInfo = source.DataInfo;
+  elseif all(isfield(source,{'time','channel','unit'})) % SPIKE 
+    %% Add .epoch to spikes but don't make other changes
+    this = source;
+    this.epoch = zeros(size(this.time)); 
+
+    fs = mean((epochs.finish-epochs.start)./epochs.duration);
+
+    for tt = 1:numel(epochs.start)
+      roi = epochs.start(tt) + [epochs.frame_size(1) epochs.frame_size(2)];
+    
+      sel = this.time >= roi(1)/fs & this.time <= roi(2)/fs;
+      this.epoch(sel) = tt;
+    end
+
+    this.epoch_onset = epochs.start/fs;
+
+    data.(channel_type{1}) = this; 
+    continue
+      
   else this = source;
        this.time = [];
-       this.data = []; 
-       if size(source.data,3) > 1
+       this.wave = []; 
+       if size(source.wave,3) > 1
          error('this data appears to have already been segmented into epochs')
        end
   end
@@ -234,15 +283,11 @@ for channel_type = reshape(data_fields, 1, [])
         this.time = (sel - epochs.start(tt)) * mean(diff(source.time));
     end
 
-    this.data = cat(3, this.data, source.data(sel,:));
-    this.data(~ok,:,end) = nan;
+    this.wave = cat(3, this.wave, source.wave(sel,:));
+    this.wave(~ok,:,end) = nan;
   end
   %%
   data.(channel_type{1}) = this; 
-end
-
-if isfield(data,'spikes')
-    error('TODO: implement epoch for spiketimes')
 end
 
 return

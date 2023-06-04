@@ -81,19 +81,7 @@ if opts.dynamic_YLIM, varargout = {[]}; end
 
 %% Implement syntax to control which spikes get let through
 
-if any(named('-roi')), include = get_('-roi'); 
-    if numel(include) == 2
-        include = (data.time >= min(include) & ...
-                   data.time <= max(include));
-    end
-else include = true(size(data.time)); 
-end
-
-if any(named('-unit')), u_roi = get_('-unit'); 
-  if isnumeric(u_roi), u_roi = ismember(data.unit, u_roi); end
-  if any(u_roi), include = include & u_roi; end
-end
-
+% select passes or all passes 
 if any(named('-pass')), pass_ok = get_('-pass');
 elseif ~isfield(data,'pass')
      data.pass = ones(size(data.time));
@@ -103,9 +91,42 @@ elseif isfield(data,'data'), % for wave data
 else pass_ok = 1:max(data.pass); % for spike data
 end
 if ~islogical(pass_ok), pass_ok = ismember(data.pass, pass_ok); end
-if any(pass_ok), include = include & pass_ok; end
+
+if any(pass_ok) && ~isfield(data,'data'), include = pass_ok;
+else include = true(size(data.time));
+end
+
+% set time window ROI
+if any(named('-roi')), roi_window = get_('-roi'); 
+  if numel(roi_window) == 1, roi_window = [0 roi_window];
+  elseif numel(roi_window) ~= 2, 
+      error('-roi must be a one- or two-element vector')
+  end
+  if isfield(data,'pass_begin') % spike times need to be adjusted
+    t0 = [0; data.pass_begin];
+    t_spk = data.time - t0(data.pass+1);
+
+    include = include & (t_spk >= min(roi_window) & ...
+                         t_spk <= max(roi_window));
+
+  else
+    include = include & (data.time >= min(roi_window) & ...
+                         data.time <= max(roi_window));
+  end
+end
+
+% set unit ROI (this makes more sense with a ch.unit where unit is e.g.
+% 0,1,2), KiloSort does it differently with more like a cell_id across 
+% channels.  
+
+if any(named('-unit')), u_roi = get_('-unit'); 
+  if isnumeric(u_roi), u_roi = ismember(data.unit, u_roi); end
+  if any(u_roi), include = include & u_roi; end
+end
 
 if numel(channel_map) > 1 && opts.do_subplot, clf, end
+
+%% Core loop
 
 for pp = 1:numel(channel_map)
 

@@ -44,17 +44,22 @@ end
 
 opts.epochs = epochs;
 
-opts.n_smooth = 3;
-opts.bins = 50; % default
+opts.n_smooth = 3; % n-point moving average smooth for psth display
+opts.bins = 50;    % << set default bin size in ms
 opts.merge = any(named('-merge')); 
 
 if any(named('-n-s')), opts.n_smooth = get_('-n-s'); end
 if any(named('-tim')), opts.bins = get_('-tim'); end
 
+if any(named('-roi')), time_roi = get_('-roi');
+  if numel(time_roi) == 1, time_roi = [0 time_roi]; end
+else time_roi = epochs.frame_size/epochs.fs;
+end
+
 if numel(opts.bins) == 1, 
     bin_w = opts.bins;
-    opts.bins = [-(.5 : -1e3*epochs.frame_size(1)/epochs.fs/bin_w) ...
-                   .5 :  1e3*epochs.frame_size(2)/epochs.fs/bin_w ];
+    opts.bins = [-(.5 : -1e3*time_roi(1)/bin_w) ...
+                   .5 :  1e3*time_roi(2)/bin_w ];
     opts.bins = sort(opts.bins*bin_w,'ascend');
 
 elseif numel(opts.bins) == 2, 
@@ -83,6 +88,10 @@ ylabel(ax(blc),'response (imp/s)')
 nP = numel(epochs.start);
 
 arrayfun(@(a)fix_vertical_offset(a,nP),ax);
+
+if isfield(epochs,'block_id'), 
+    error TODO_implement_block_logic
+end
 
 return
 
@@ -124,6 +133,8 @@ return
 function fix_vertical_offset(ax,n_passes)
 
 h = findobj(ax,'type','patch');
+
+if isempty(h), return, end
 
 indices = cat(1,h.UserData); 
 pass_id = double(indices(:,3));

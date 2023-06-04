@@ -8,7 +8,7 @@ list = dir([ks_folder '/*.rhd']); % list of multiple files
 data = tools.readIntan(list,'ADC',1); % read multiple files and merge
 data = tools.readKS(data,'-quality',4); % read ks_sorted spike file
 
-epoched = tools.segmentEpochs(data); % epoched data
+data = tools.segmentEpochs(data); % epoched data
 
 %%
 
@@ -17,7 +17,7 @@ epoched = tools.segmentEpochs(data); % epoched data
 clf
 % plots.psth(ed) % one panel per channel
 
-plots.psth(epoched,'-per-unit'); %  to see every unit on a seperate axis
+plots.psth(data,'-per-unit'); %  to see every unit on a seperate axis
 
 
 %% Zoom into a set of units on a pair of channels 
@@ -25,7 +25,7 @@ plots.psth(epoched,'-per-unit'); %  to see every unit on a seperate axis
 % get(gco,'userdata') % return the [channel unit_id pass_id] of a selected histogram
 
 clf
-plots.psth(epoched,'-per-unit','-unit',17:22,'-chan',16:21); %  see just these units
+plots.psth(data,'-per-unit','-unit',17:22,'-chan',16:21); %  see just these units
 
 % the -chan is necessary because unit_ids are not assumed to be unique
 % across channels (i.e. the way BlackRock or Plexon handles unit_its). i.e.
@@ -36,11 +36,11 @@ plots.psth(epoched,'-per-unit','-unit',17:22,'-chan',16:21); %  see just these u
 
 %%
 
-plots.response_curve(epoched,'-per-unit','-label'); % ,'-roi',[-2 5]);
+plots.response_curve(data,'-per-unit','-label'); % ,'-roi',[-2 5]);
 
 %%
 
-plots.psth(epoched,'-roi', [-0.1 2.5]); %  to see every unit on a seperate axis
+plots.psth(data,'-roi', [-0.1 2.5]); %  to see every unit on a seperate axis
 
 
 % todo - implement epochs.block_id for averaging 

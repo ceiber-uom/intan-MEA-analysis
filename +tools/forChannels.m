@@ -161,6 +161,18 @@ for pp = 1:numel(channel_map)
         this.(f{1}) = this.(f{1})(ok,:,:,:,:,:,:,:);
       end
 
+      % Select per-pass variables to include
+      if isfield(this,'index') && size(this.index,2) >= 2
+
+          idx = all(this.index == [cc u_id],2);
+    
+          % Select pass variables to include
+          for f = fieldnames(data)'
+            if numel(idx) ~= size(this.(f{1})), continue, end
+            this.(f{1}) = this.(f{1})(idx,:,:,:,:,:,:,:);
+          end
+      end
+
       out = cell(size(varargout));
 
       % Invoke the function to be applied

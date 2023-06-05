@@ -174,7 +174,7 @@ for cc = 1:nC
         style{5} = 'none';
         fill([x fliplr(x)],[y-se fliplr(y+se)], ...
                style{:},'userdata',[index cc])
-        plot(x,y,'-','color',color,'linewidth',1.5)
+        plot(x,y,'-','color',color,'linewidth',1.5,'userdata',[index cc])
 
 
 
@@ -195,7 +195,7 @@ end
 return
 
 
-function fix_vertical_offset(ax,n_passes,opts)
+function fix_vertical_offset(ax,n_passes,opts) %#ok<INUSD> 
 
 graphics_object = {'patch','line','rectangle'};
 dy = []; 
@@ -212,7 +212,8 @@ for g = 1:3
     dy = arrayfun(@(x) max(x.YData), h); 
     dy = 1.05 * max(dy); 
     ax.YLim = [-0.5 1.1*n_passes]*dy;
-  else
+  end
+  if g == 3
     rect_h = cat(1,h.Position);
     rect_h = max(rect_h(:,4)); 
   end

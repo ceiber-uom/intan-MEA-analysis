@@ -12,7 +12,8 @@ data = tools.segmentEpochs(data); % epoched data
 
 % setting data.epochs.condition_id enables averaging in the PSTH 
 
-data.epochs.condition_id = ones(50,1); %  03_SQ3x50NF.rhd 
+data.epochs.condition_id = [ones(50,1); 2*ones(50,1)]; % 02_SQ1X100NF.rhd
+% data.epochs.condition_id = ones(50,1); %  03_SQ3x50NF.rhd 
 
 %%
 
@@ -23,7 +24,7 @@ clf
 % plots.psth(data,'-per-unit'); %  to see every unit on a seperate axis
 
 % 03_SQ3x50NF.rhd - zoom into a relevent ROI for this stimulus:
-plots.psth(data,'-per-unit','-time',1,'-roi',[-0.01 0.05]);
+plots.psth(data,'-per-unit','-time',1,'-roi',[-0.01 0.05],'-sem');
 
 % try adding -sem for an alternate plot style
 

@@ -17,9 +17,14 @@ function psth (data, varargin)
 % -time [bin-width]    Set bin width (default: 50 ms) in ms                  
 % -labels              Add channel labels (default: corners only)
 % -no-labels           Suppress channel labels for corners
+% -no-bar              Disable stimulus bar on PSTH plots
 % -ticks               Toggle default ticks behaviour (ticks enabled for
 %                       6 or fewer channels, disabled otherwise)
 % -per-unit            One panel per unit (default: one per channel)
+% -per-pass            One row per pass (default if epochs.condition_id not
+%                       set)
+% -sem                 Show SEM around average PSTH
+%                       (only relevent if -per-pass not enabled)
 % -pass [pass_ids]     Select passes to plot
 % 
 % v0.1 - 4 June 2023 - Calvin Eiber <c.eiber@ieee.org>
@@ -47,6 +52,9 @@ opts.epochs = epochs;
 opts.n_smooth = 3; % n-point moving average smooth for psth display
 opts.bins = 50;    % << set default bin size in ms
 opts.merge = any(named('-merge')); 
+opts.trial_avg = isfield(epochs,'condition_id') && ~any(named('-per-p')); 
+opts.stim_bar = ~any(named('-no-b'));
+opts.show_sem = any(named('-sem'));
 
 if any(named('-n-s')), opts.n_smooth = get_('-n-s'); end
 if any(named('-tim')), opts.bins = get_('-tim'); end
@@ -85,9 +93,12 @@ pos = cat(1,ax.Position);
 xlabel(ax(blc),'time (s)'), 
 ylabel(ax(blc),'response (imp/s)')
 
-nP = numel(epochs.start);
+if opts.trial_avg, 
+     nY = numel(unique(epochs.condition_id));
+else nY = numel(epochs.start);
+end
 
-arrayfun(@(a)fix_vertical_offset(a,nP),ax);
+arrayfun(@(a)fix_vertical_offset(a,nY,opts),ax);
 
 if isfield(epochs,'block_id'), 
     error TODO_implement_block_logic
@@ -109,6 +120,11 @@ end
 
 style = {color,'FaceAlpha',0.5,'EdgeColor',color};
 if opts.merge, style{3} = 1; end
+if opts.trial_avg
+    [conds,~,cond_id] = unique(opts.epochs.condition_id);
+    nC = numel(conds); 
+    y_sum = zeros(nP,1) * bins;
+end
 
 for pp = 1:nP
 
@@ -117,36 +133,99 @@ for pp = 1:nP
 
     if ~any(y), continue, end
 
+    if opts.trial_avg, y_sum(pp,:) = y; continue, end
+
     if opts.n_smooth > 0, 
         y = conv(y,ones(1,opts.n_smooth)/opts.n_smooth,'same'); 
     end
 
     x = [bins-dx;bins+dx]; x = x([1 1:end end])/1e3;
-    y = [y;y]; y = [0; y(:); 0]; %#ok<AGROW> 
-
+    y = [y;y]; y = [0; y(:); 0]; %#ok<AGROW>
     fill(x,y,style{:},'userdata',[index pp])
+
+    if opts.stim_bar
+      dur = opts.epochs.duration(pp); 
+      rectangle('position',[0 -max(y)*0.03 dur max(y)*0.03], ...
+                'facecolor',[.3 .3 .3],'userdata',[index pp], ...
+                'clipping','off','edgecolor',[.3 .3 .3])
+    end
+end
+
+if ~opts.trial_avg, return, end
+
+for cc = 1:nC
+
+    sel = (cond_id == cc);
+
+    y = mean(y_sum(sel,:),1); 
+    if opts.n_smooth > 0, 
+        y = conv(y,ones(1,opts.n_smooth)/opts.n_smooth,'same'); 
+    end
+
+    if opts.show_sem
+
+        se = std(y_sum(sel,:),[],1) ./ sqrt(sum(sel));
+        x = bins/1e3;
+
+        if opts.n_smooth > 0, 
+          se = conv(se,ones(1,opts.n_smooth)/opts.n_smooth,'same'); 
+        end
+        
+        style{5} = 'none';
+        fill([x fliplr(x)],[y-se fliplr(y+se)], ...
+               style{:},'userdata',[index cc])
+        plot(x,y,'-','color',color,'linewidth',1.5)
+
+
+
+    else
+        x = [bins-dx;bins+dx]; x = x([1 1:end end])/1e3;
+        y = [y;y]; y = [0; y(:); 0]; %#ok<AGROW>
+        fill(x,y,style{:},'userdata',[index cc])
+    end
+
+    if opts.stim_bar
+      dur = opts.epochs.duration(find(sel,1)); 
+      rectangle('position',[0 -max(y)*0.03 dur max(y)*0.03], ...
+               'facecolor',[.3 .3 .3],'userdata',[index cc], ...
+               'clipping','off','edgecolor',[.3 .3 .3])
+    end
 end
 
 return
 
 
-function fix_vertical_offset(ax,n_passes)
+function fix_vertical_offset(ax,n_passes,opts)
 
-h = findobj(ax,'type','patch');
+graphics_object = {'patch','line','rectangle'};
+dy = []; 
 
-if isempty(h), return, end
+for g = 1:3
+    
+  h = findobj(ax,'type',graphics_object{g});    
+  if isempty(h), continue, end
+        
+  indices = cat(1,h.UserData); 
+  pass_id = double(indices(:,3));    
 
-indices = cat(1,h.UserData); 
-pass_id = double(indices(:,3));
-
-dy = arrayfun(@(x) max(x.YData), h); 
-dy = 1.05 * max(dy); 
-
-for ii = 1:numel(h)
-    h(ii).YData = h(ii).YData - h(ii).YData(1) + dy*(pass_id(ii)-1);
+  if g < 3 && isempty(dy)
+    dy = arrayfun(@(x) max(x.YData), h); 
+    dy = 1.05 * max(dy); 
+    ax.YLim = [-0.5 1.1*n_passes]*dy;
+  else
+    rect_h = cat(1,h.Position);
+    rect_h = max(rect_h(:,4)); 
+  end
+           
+  for ii = 1:numel(h)
+    if g < 3, % patch or line
+      h(ii).YData = h(ii).YData + dy*(pass_id(ii)-1);
+    else % rectangle
+      h(ii).Position(2) = dy*(pass_id(ii)-1) - rect_h;
+      h(ii).Position(4) = rect_h;
+    end
+  end
 end
-
-ax.YLim = [-0.5 1.1*n_passes]*dy;
 
 h = findobj(ax,'type','text');
 if isempty(h), return, end

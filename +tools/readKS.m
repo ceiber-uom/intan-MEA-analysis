@@ -45,6 +45,49 @@ clear list sel n p p_
 disp(['Reading ' filename])
 spike = load(filename);
 
+n_source = size(spike.spike_times,2);
+
+
+if n_source > 1
+  if any(named('-s')), file_ok = get_('-s'); 
+  else
+    % figure out which spikes columns are relevent to this rhd file
+    if ~isfield(data,'filename_list') || ...
+      numel(data.filename_list) ~= n_source
+      data_folder = regexprep(data.filename,'[\\/][^/\\]+\.rhd','/*.rhd');
+      data_folder = dir(data_folder);       
+      if numel(data_folder) ~= n_source
+        error('%s %d %s %d %s ''%s''. %s.', ...
+              'ksrasters.mat seems like it was generated from', ... 
+               n_source, 'source files but',numel(data_folder), ...
+               '.rhd file(s) were found at', fileparts(data.filename), ...
+              'Please use -select [index] to specify which data to use');
+      end
+
+      p_ = @(x) [x.folder filesep x.name]; % path expander
+      data_folder = arrayfun(p_,data_folder,'unif',0);
+
+      if isfield(data,'filename_list')
+           file_ok = ismember(data_folder, data.filename_list );
+      else file_ok = ismember(data_folder,{data.filename});
+        if sum(file_ok) ~= 1, 
+          error('unclear which of the %d %s ''%s''. %s.', n_source, ...
+                'source files in ksrasters.mat corresponds to', ...
+                 data.filename, ...
+                'Please use -select [index] to specify which data to use')
+        end
+      end
+    end % determine file_ok from data.filename [_list]
+  end % or get from -s [index]
+
+  spike.amplitudes = spike.amplitudes(:,file_ok);
+  spike.spike_times = spike.spike_times(:,file_ok);
+  spike.spktimes_sr = spike.spktimes_sr(:,file_ok);
+
+  fprintf('Selected %d/%d file sets from ksrasters.mat\n', ...
+           size(spike.spike_times,2), n_source)
+end
+
 quality_threshold = 4;
 if any(named('-q')), quality_threshold = get_('-q'); end
 

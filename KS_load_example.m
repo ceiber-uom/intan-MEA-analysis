@@ -1,23 +1,31 @@
 
 clear
 
-ks_folder = ['\\shared.sydney.edu.au\research-data\PRJ-vnrg2019\' ...
-                            'V19_transfer\Calvin\MEA\Fl_int_durNF\'];
+% ks_folder = ['\\shared.sydney.edu.au\research-data\PRJ-vnrg2019\' ...
+%                             'V19_transfer\Calvin\MEA\Fl_int_durNF\'];
+% list = dir([ks_folder '/*.rhd']); % list of multiple files
 
-list = dir([ks_folder '/*.rhd']); % list of multiple files
-data = tools.readIntan(list,'ADC',1); % read multiple files and merge
+data = tools.readIntan('','ADC',1); % read one or multiple files and merge
 data = tools.readKS(data,'-quality',4); % read ks_sorted spike file
 
 data = tools.segmentEpochs(data); % epoched data
 
+% setting data.epochs.condition_id enables averaging in the PSTH 
+
+data.epochs.condition_id = ones(50,1); %  03_SQ3x50NF.rhd 
+
 %%
 
-% plots.raster(ed); % ,'-per-unit'
+% plots.raster(epochs); % ,'-per-unit'
 
 clf
-% plots.psth(ed) % one panel per channel
+% plots.psth(epochs) % one panel per channel
+% plots.psth(data,'-per-unit'); %  to see every unit on a seperate axis
 
-plots.psth(data,'-per-unit'); %  to see every unit on a seperate axis
+% 03_SQ3x50NF.rhd - zoom into a relevent ROI for this stimulus:
+plots.psth(data,'-per-unit','-time',1,'-roi',[-0.01 0.05]);
+
+% try adding -sem for an alternate plot style
 
 
 %% Zoom into a set of units on a pair of channels 
@@ -36,7 +44,7 @@ plots.psth(data,'-per-unit','-unit',17:22,'-chan',16:21); %  see just these unit
 
 %%
 
-plots.response_curve(data,'-per-unit','-label'); % ,'-roi',[-2 5]);
+plots.response_curve(data); % ,'-roi',[-2 5]);
 
 %%
 

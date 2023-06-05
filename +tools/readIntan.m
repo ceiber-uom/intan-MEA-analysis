@@ -60,7 +60,12 @@ if iscell(filename) || isstruct(filename)
 end
 
 if ~exist(filename,'file')
-    [fn,fp] = uigetfile('*.rhd',[],filename);
+    [fn,fp] = uigetfile('*.rhd',[],filename,'multiselect','on');
+
+    if iscell(fn)
+      output = read_multiple_files( strcat(fp,fn), varargin{:} );
+      return
+    end
     if ~any(fn), error('Cancelled'), end
     filename = [fp fn];
 end
@@ -71,7 +76,6 @@ opts.n_streams_req = 0;
 opts.notchfreq = 0;
 opts.time_roi = [];
 opts.export_ts = any(named('-timeseries')) || any(named('-ts'));
-
 % opts.do_AMP_channels = 0;
 % opts.do_AUX_channels = 0;
 % opts.do_VOLT_channels = 0;
@@ -340,8 +344,13 @@ assert(data_present,'this file does not contain data to load!')
 
 data = struct; 
 for ty = channel_types
-    data.(chan_(ty)) = zeros(num.(chan_(ty)), num.(sams_(ty)));
     data.(sams_(ty)) = 1; 
+    if opts.n_streams_req > 0 && ~any(opts.(do_ch_(ty))), continue, end
+    try data.(chan_(ty)) = zeros(num.(chan_(ty)), num.(sams_(ty)));    
+    catch err % data allocation error, possibly out-of-memory
+      warning(err.getReport()) % throw as warning and try again
+      data.(chan_(ty)) = zeros(num.(chan_(ty)), num.(sams_(ty)),'single');    
+    end
 end
 
 data.AMP_time = zeros(1, num.AMP_samples);
@@ -369,32 +378,46 @@ for ii = 1:num_data_blocks
     end
 
     if (num.AMP_channels > 0)
-      data.AMP_channels(:, data.AMP_samples + (0 : nspd-1)) = ...
-        fread(fid, [nspd, num.AMP_channels], 'uint16')';
+      chunk = fread(fid, [nspd, num.AMP_channels], 'uint16')';
+      if isfield(data,'AMP_channels')
+        data.AMP_channels(:, data.AMP_samples + (0 : nspd-1)) = chunk;
+      end
     end
     if (num.AUX_channels > 0)
-      data.AUX_channels(:, data.AUX_samples + (0:(nspd/4)-1)) = ... 
-        fread(fid, [(nspd / 4), num.AUX_channels], 'uint16')';
+      chunk = fread(fid, [(nspd / 4), num.AUX_channels], 'uint16')';
+      if isfield(data,'AMP_channels')
+        data.AUX_channels(:, data.AUX_samples + (0:(nspd/4)-1)) = chunk;
+      end
     end
     if (num.VOLT_channels > 0)
-      data.VOLT_channels(:, data.VOLT_samples) = ...
-        fread(fid, [1, num.VOLT_channels], 'uint16')';
+      chunk = fread(fid, [1, num.VOLT_channels], 'uint16')';
+      if isfield(data,'VOLT_channels')
+        data.VOLT_channels(:, data.VOLT_samples) = chunk;
+      end
     end
-    if (num.TEMP_channels > 0)
-      data.TEMP_channels(:, data.TEMP_samples) = ...
-        fread(fid, [1, num.TEMP_channels], 'int16')';
+    if (num.TEMP_channels > 0)      
+      chunk = fread(fid, [1, num.TEMP_channels], 'int16')';
+      if isfield(data,'VOLT_channels'), 
+        data.TEMP_channels(:, data.TEMP_samples) = chunk;
+      end
     end
     if (num.ADC_channels > 0)
-      data.ADC_channels(:, data.ADC_samples + (0 : nspd-1)) = ...
-        fread(fid, [nspd, num.ADC_channels], 'uint16')';
+      chunk = fread(fid, [nspd, num.ADC_channels], 'uint16')';       
+      if isfield(data,'ADC_channels'), 
+        data.ADC_channels(:, data.ADC_samples + (0 : nspd-1)) = chunk;
+      end
     end
-    if (num.DI_channels > 0)
-      data.DI_raw(data.DI_samples + (0 : nspd-1)) = ...
-        fread(fid, nspd, 'uint16');
+    if (num.DI_channels > 0)      
+      chunk = fread(fid, nspd, 'uint16');
+      if isfield(data,'DI_raw'), 
+        data.DI_raw(data.DI_samples + (0 : nspd-1)) = chunk;
+      end
     end
     if (num.DO_channels > 0)
-      data.DO_raw(data.DO_samples + (0: nspd-1)) = ...
-        fread(fid, nspd, 'uint16');
+      chunk = fread(fid, nspd, 'uint16');
+      if isfield(data,'DO_raw'), 
+        data.DO_raw(data.DO_samples + (0: nspd-1)) = chunk;
+      end
     end
     
     % update indices 
@@ -428,16 +451,26 @@ for ii=1:num.DO_channels
 end
 
 % Scale voltage levels appropriately.
-data.AMP_channels = 0.195 * (data.AMP_channels - 32768); % units = microvolts
-data.AUX_channels = 37.4e-6 * data.AUX_channels; % units = volts
+if isfield(data,'AMP_channels')
+    data.AMP_channels = 0.195 * (data.AMP_channels - 32768); % units = microvolts
+end
+if isfield(data,'AUX_channels')
+    data.AUX_channels = 37.4e-6 * data.AUX_channels; % units = volts
+end
+if isfield(data,'VOLT_channels')
 data.VOLT_channels = 74.8e-6 * data.VOLT_channels; % units = volts
+end
+if isfield(data,'TEMP_channels')
 data.TEMP_channels = data.TEMP_channels / 100; % units = deg C
+end
 
-if (board_mode == 1)
+if isfield(data,'ADC_channels')
+  if (board_mode == 1)
      data.ADC_channels = 152.59e-6 * (data.ADC_channels - 32768); % units = volts
-elseif (board_mode == 13) % Intan Recording Controller
-     data.ADC_channels = 312.5e-6 * (data.ADC_channels - 32768); % units = volts    
-else data.ADC_channels = 50.354e-6 * data.ADC_channels; % units = volts
+  elseif (board_mode == 13) % Intan Recording Controller
+       data.ADC_channels = 312.5e-6 * (data.ADC_channels - 32768); % units = volts    
+  else data.ADC_channels = 50.354e-6 * data.ADC_channels; % units = volts
+  end
 end
 
 % Check for gaps in timestamps.
@@ -459,7 +492,8 @@ data.TEMP_time = data.VOLT_time;
 % If the software notch filter was selected during the recording, apply the
 % same notch filter to amplifier data here.  But don't do this for v3.0+ 
 % files (from Intan RHX software) because RHX saves notch-filtered data.
-if (notch_filter_frequency > 0 && data_file_main_version_number < 3)
+if (notch_filter_frequency > 0 && data_file_main_version_number < 3) && ...
+        isfield(data,'AMP_channels')
   for ii = 1:num.AMP_channels
       data.AMP_channels(ii,:) = notch_filter(data.AMP_channels(ii,:), ...
                                              sample_rate, ...
@@ -478,6 +512,7 @@ for ty = channel_types
 
     % First, check to see if we skip this output type 
     if opts.n_streams_req > 0 && ~any(opts.(do_ch_(ty))), continue, end
+    if ~isfield(data,chan_(ty)), continue, end
     if opts.n_streams_req == 0, sel = 1:n_c;
       if ~any(sel), continue, end
     elseif n_c == 0

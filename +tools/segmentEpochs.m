@@ -49,23 +49,23 @@ else
   end
 end
 
-% This wasn't installed once on a machine, this should verify that the
-% correct toolbox is installed 
-if ~all(contains(which('fit'),{'MATLAB','toolbox','curvefit'}))
+if verbose
+  % This wasn't installed once on a machine, this should verify that the
+  % correct toolbox is installed 
+  if ~all(contains(which('fit'),{'MATLAB','toolbox','curvefit'}))
     warning('You may need to install the Curve Fit Toolbox')
     fittype;
-end
-
-if verbose
+  end
     fprintf('segmenting epochs based on photocell trigger in data%s ... \n', noun)
 end
+
 
 %% Parse options
 
 opts.threshold_min = 0.4;
 opts.threshold_max = 0.6;
 opts.before_fraction = 0.5; % for determining frame size
-opts.allowable_jitter = 0.01; % coefficient of variation 
+opts.allowable_jitter = 0.02; % coefficient of variation 
 opts.assess_fraction = 0.9; % for getting properties
 
 if any(named('-op')),  opts = get_('-op'); end
@@ -123,17 +123,19 @@ observed_jitter = std(delta_t) / mean(delta_t);
 if observed_jitter > opts.allowable_jitter
 
     clf
-    plot(trig), hold on
+    plot(trig.time, trig.wave), hold on
     plot(xlim,[1 1]*dd(2),'--')
     plot(xlim,[1 1]*dd(1),'--')
-    plot(trig.Time(epochs.start), ...
+    plot(trig.time(epochs.start), ...
          dd(2) * ones(size(epochs.start)),'k^','markerFacecolor','k')
 
-    plot(trig.Time(epochs.finish), ...
+    plot(trig.time(epochs.finish), ...
          dd(1) * ones(size(epochs.finish)),'kv','markerFacecolor','k')
-    error('The observed variation in start timestamps (%0.2f%%) %s (%0.1f%%). %s', ...
+    error('%s (%0.2f%%) %s (%0.1f%%). %s %s', ...
+          'The observed variation in start timestamps', ...
           100*observed_jitter, 'exceeds the allowable jitter', ...
-          100*opts.allowable_jitter, 'If this is OK, please increase this parameter')
+          100*opts.allowable_jitter, 'If this is OK, please increase', ...
+          'this parameter (e.g. -jitter 0.05 for 5%).')
 end
 
 %% Determine pre/post frame 

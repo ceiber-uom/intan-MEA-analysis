@@ -15,6 +15,8 @@ function [epochs,opts] = segmentEpochs( data, varargin )
 % -assess [0.90] : for determining input stimulus properties, use the
 %                  middle X % of the recorded data
 % 
+% Dependencies: Matlab Curve Fitting Toolbox (MathWorks)
+% 
 % V0.1 - 27 September 2022 - Calvin Eiber <c.eiber@ieee.org>
 % 
 
@@ -45,6 +47,13 @@ else
   elseif isfield(data,'Data') && isfield(data,'Time') 
                               trig = data; data = []; 
   end
+end
+
+% This wasn't installed once on a machine, this should verify that the
+% correct toolbox is installed 
+if ~all(contains(which('fit'),{'MATLAB','toolbox','curvefit'}))
+    warning('You may need to install the Curve Fit Toolbox')
+    fittype;
 end
 
 if verbose

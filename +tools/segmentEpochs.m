@@ -173,6 +173,10 @@ epochs.frame_size = round([-n_sam_pre n_sam_active + n_sam_post]);
 
 v_ = @(x) reshape(x,[],1); % vertical vector
 
+% bounds for fourier fit
+LB = [min(trig_data) -range(trig_data)/2 -range(trig_data)/2 0];
+UB = [max(trig_data) range(trig_data)/2 range(trig_data)/2 1/(4*mean(diff(trig.time)))];
+
 for ii = 1:numel(epochs.start)
 
     t = trig.time(epochs.start(ii):epochs.finish(ii));
@@ -186,13 +190,13 @@ for ii = 1:numel(epochs.start)
         t(1 : n_cut) = []; t(end-n_cut+1 : end) = []; 
         y(1 : n_cut) = []; y(end-n_cut+1 : end) = []; 
     end
-    
-    est = fit(v_(t),v_(y),'fourier1'); 
+
+    est = fit(v_(t),v_(y)-mean(y),'fourier1','lower',LB,'upper',UB); 
 
     epochs.frequency(ii,1) = est.w/2/pi;
     epochs.amplitude(ii,1) = sqrt( est.a1^2 + est.b1^2 );
     epochs.phase(ii,1)     = atan2( est.b1, est.a1 );
-    epochs.average(ii,1)  = est.a0;
+    epochs.average(ii,1)  = mean(y);
     
     if false
       %%

@@ -1,4 +1,5 @@
 
+% error yeah_no. 
 clear
 
 % ks_folder = ['\\shared.sydney.edu.au\research-data\PRJ-vnrg2019\' ...
@@ -8,11 +9,12 @@ clear
 data = tools.readIntan('','ADC',1); % read one or multiple files and merge
 data = tools.readKS(data,'-quality',4); % read ks_sorted spike file
 
-data = tools.segmentEpochs(data); % epoched data
-
+% data = tools.segmentEpochs(data); % epoched data
 % setting data.epochs.condition_id enables averaging in the PSTH 
 
-data.epochs.condition_id = [ones(50,1); 2*ones(50,1)]; % 02_SQ1X100NF.rhd
+epochs = tools.segmentEpochs(data,'-jitter',0.1); % epoched data
+
+% data.epochs.condition_id = [ones(50,1); 2*ones(50,1)]; % 02_SQ1X100NF.rhd
 % data.epochs.condition_id = ones(50,1); %  03_SQ3x50NF.rhd 
 
 %%

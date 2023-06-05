@@ -14,7 +14,7 @@ for cell_id = 1:n_cells
     plots.response_curve(epochs,'-per-unit','-chan',cell_id, '-x', ...
                         'average','-roi',[-0.05 0.2]); %  see just this unit
     
-    set(gca,'position',p), axis tight, xlim([-0.1 10])
+    set(gca,'position',p), axis tight, xlim([-0.1 10]), ylim(ylim);
     
     xlabel('stimulus intensity')
     

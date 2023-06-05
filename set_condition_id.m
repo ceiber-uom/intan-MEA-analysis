@@ -3,6 +3,11 @@
 function stim = set_condition_id(stim, protocol) %#ok<INUSD> 
 % assert protocol = 01_SQ1100NF565040423
 
+if isfield(stim,'epochs') % enable call on top-level object
+    stim.epochs = set_condition_id(stim.epochs);
+    return
+end
+
 stim.duration = round(stim.duration,3); % correct noise in estimate
 stim.average  = round(stim.average,2);  % correct noise in estimate
 

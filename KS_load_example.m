@@ -1,5 +1,4 @@
 
-% error yeah_no. 
 clear
 
 % ks_folder = ['\\shared.sydney.edu.au\research-data\PRJ-vnrg2019\' ...
@@ -13,13 +12,12 @@ data = tools.readKS(data,'-quality',4); % read ks_sorted spike file
 % setting data.epochs.condition_id enables averaging in the PSTH 
 
 epochs = tools.segmentEpochs(data,'-jitter',0.1); % epoched data
-
-epochs.epochs = 
+epochs = set_condition_id(epochs); % for 01_ stimuli
 
 % data.epochs.condition_id = [ones(50,1); 2*ones(50,1)]; % 02_SQ1X100NF.rhd
 % data.epochs.condition_id = ones(50,1); %  03_SQ3x50NF.rhd 
 
-%%
+%% 
 
 % plots.raster(epochs); % ,'-per-unit'
 
@@ -28,7 +26,7 @@ clf
 % plots.psth(data,'-per-unit'); %  to see every unit on a seperate axis
 
 % 03_SQ3x50NF.rhd - zoom into a relevent ROI for this stimulus:
-plots.psth(data,'-per-unit','-time',1,'-roi',[-0.01 0.05],'-sem');
+plots.psth(epochs,'-per-unit','-time',1,'-roi',[-0.01 0.05],'-sem');
 
 % try adding -sem for an alternate plot style
 
@@ -49,7 +47,7 @@ plots.psth(data,'-per-unit','-unit',17:22,'-chan',16:21); %  see just these unit
 
 %%
 
-plots.response_curve(data); % ,'-roi',[-2 5]);
+plots.response_curve(epochs,'-x','duration','-roi',[-2 5],'-per-unit');
 
 %%
 

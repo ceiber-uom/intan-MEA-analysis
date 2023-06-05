@@ -20,6 +20,7 @@ function response_curve (data, varargin)
 % -ticks               Toggle default ticks behaviour (ticks enabled for
 %                       6 or fewer channels, disabled otherwise)
 % -per-unit            One panel per unit (default: one per channel)
+% -no-average          Do not attempt averaging over conditions
 % -pass [pass_ids]     Select passes to plot
 % 
 % v0.1 - 4 June 2023 - Calvin Eiber <c.eiber@ieee.org>
@@ -44,6 +45,8 @@ end
 
 opts.epochs = epochs;
 opts.log_x = false;
+
+if any(named('-log-x')), opts.log_x = true; end
 
 if any(named('-x'))
      opts.x_var = get_('-x');
@@ -82,10 +85,16 @@ xlabel(h(blc),opts.x_label); ylabel(h(blc),opts.y_label);
 
 set(h,'YLim',[min([h.YLim]) max([h.YLim])])
 
-arrayfun(@(x) clean_up_plot(x,opts), h)
+arrayfun(@(x) clean_up_plot(x,opts), h) % fix axis labelling
+
+if isfield(epochs,'condition_id') && ~any(named('-no-av')) && ... 
+        numel(unique(epochs.condition_id)) < numel(epochs.condition_id)
+
+    arrayfun(@(x) average_across_replicates(x,opts), h) % fix axis labelling
+
+end
 
 return
-
 
 function plot_curve(data, index, opts)
 
@@ -114,7 +123,10 @@ for ii = 1:numel(opts.y_var)
         mkr(find(mkr == '(',1):end) = []; 
     end
 
-    if numel(y) == 1 && any(mkr == '-'), y = y*ones(size(x)); end
+    if numel(y) == 1 && any(mkr == '-'), 
+      x = [min(x) max(x)];
+      y = [y y];
+    end
 
 
     plot(x,y,mkr,style{:},'userdata',[index ii])
@@ -135,7 +147,6 @@ t(1).VerticalAlignment = 'top';
 
 return
 
-
 function [n_spike,n_spk_pre] = pass_spike_counts(data, ~, varargin)
 
 nP = numel(data.pass_begin);
@@ -150,13 +161,6 @@ for pp = 1:nP
 end
 
 return
-
-
-
-
-
-
-
 
 function opts = guess_axis_structure(epochs, opts)
 %% Determine best-spaced X-axis variable
@@ -199,5 +203,75 @@ opts.x_label = sprintf('%s (%s)', strrep(opts.x_var,'_',' '), ...
 opts.log_x = (selection(sel,1) ~= 0);
 
 
+function average_across_replicates(h, opts)
 
+epochs = opts.epochs;
+cond = unique(epochs.condition_id);
 
+x = h.Children(end).XData;
+y = h.Children(end).YData;
+
+x_avg = zeros(size(cond));
+y_avg = zeros(size(cond));
+y_sem = zeros(size(cond));
+
+for cc = 1:numel(cond)
+
+    sel = (epochs.condition_id == cond(cc));
+    y_avg(cc) = mean(y(sel));
+    y_sem(cc) = std(y(sel)) / sqrt(sum(sel));
+    x_avg(cc) = mean(x(sel));
+
+end
+
+% guess covariate, fewest 
+covariate = []; 
+covariate_label = {}; 
+vars = {'duration','frequency','amplitude','phase','average'};
+cov = @(x) std(x) / mean(x);
+
+for ii = 1:numel(vars)
+  if strcmp(opts.x_var,vars{ii}), continue, end
+
+  civ = arrayfun(@(c) cov(epochs.(vars{ii})(epochs.condition_id == c)), ...
+                       cond);
+
+  % disp(mean(civ))
+  if mean(civ) > 0.01, continue, end % too much variance within condition ID
+
+  if numel(unique(epochs.(vars{ii}))) > 2*numel(cond), continue, end
+
+  covariate = [covariate epochs.(vars{ii})]; 
+  covariate_label = [covariate_label vars(ii)];
+end
+
+[covariate_levels,~,cov_id] = unique(covariate,'rows');
+
+%% Make errorbars
+
+if numel(covariate_levels) > 3
+     color = turbo(size(covariate_levels,1)) .* [1 .9 1];
+else color = lines(7); 
+end
+
+for ii = 1:numel(covariate_levels)
+
+    sel = ismember(cond, epochs.condition_id(cov_id == ii));
+    if mod(ii,2) == 1, mfc = 'w';
+    else mfc = (color(ii,:) + 0.3)/1.3;
+    end
+
+    info = struct;
+    for lbl = 1:numel(covariate_label)
+        info.(covariate_label{lbl}) = covariate_levels(ii,lbl); 
+    end
+
+    errorbar(x_avg(sel),y_avg(sel),y_sem(sel),'o', ...
+        'LineWidth',1.1,'Color',color(ii,:),'MArkerFaceColor',mfc, ...
+        'PArent',h,'userdata',info)
+
+end
+
+h.Children(end).Visible = 'off';
+
+return

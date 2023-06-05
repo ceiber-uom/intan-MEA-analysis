@@ -295,10 +295,13 @@ else
     % so for pc the * thing does not work, need two lines to call gs, first
     % one makes a list of files, second one creates the pdf
     % CDE - changed 12/11/15 to work woth other folder paths. 
-    system(['for %i in (*.ps) do ECHO "%i" >> filename.lst']);
+    system('for %i in (*.ps) do ECHO "%i" >> filename.lst');
    
-    % ! "C:\Program Files\gs\gs9.27\bin\gswin64c.exe" -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -dEncodeColorImages=false -dEncodeGrayImages=false -dEncodeMonoImages=false -sOutputFile="combined.pdf" @filename.lst
-    ! "C:\Program Files\gs\gs9.56.1\bin\gswin64c.exe" -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -dEncodeColorImages=false -dEncodeGrayImages=false -dEncodeMonoImages=false -sOutputFile="combined.pdf" @filename.lst
+    gs_bin = dir('C:\Program Files\gs\*\bin\gswin64c.exe');
+    p_ = @(x) [x.folder filesep x.name]; % path expander
+
+    system(['"' p_(gs_bin) '" -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -dEncodeColorImages=false -dEncodeGrayImages=false -dEncodeMonoImages=false -sOutputFile="combined.pdf" @filename.lst']);
+    % ! "C:\Program Files\gs\gs9.27\bin\gswin64c.exe" -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -dEncodeColorImages=false -dEncodeGrayImages=false -dEncodeMonoImages=false -sOutputFile="combined.pdf" @filename.lst    
 end 
 
 % some old code used to figure stuf out on how to call ghostscript etc

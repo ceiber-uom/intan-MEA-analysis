@@ -14,6 +14,8 @@ data = tools.readKS(data,'-quality',4); % read ks_sorted spike file
 
 epochs = tools.segmentEpochs(data,'-jitter',0.1); % epoched data
 
+epochs.epochs = 
+
 % data.epochs.condition_id = [ones(50,1); 2*ones(50,1)]; % 02_SQ1X100NF.rhd
 % data.epochs.condition_id = ones(50,1); %  03_SQ3x50NF.rhd 
 

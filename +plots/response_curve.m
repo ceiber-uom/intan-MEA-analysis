@@ -2,7 +2,14 @@
 function response_curve (data, varargin)
 % function plots.response_curve( data, ... )
 %
-% Response curve analysis of recorded spikes. 
+% Response curve analysis of recorded spikes. For simple stimuli this code 
+% works almost automatically to figure out what way of plotting makes the
+% most sense, for more complicated stimuli (i.e. parameter grid protocols)
+% you might need to give it a bit of help. 
+% 
+% by default this will plot data.SPIKES.spike_count (in the post-stimulus
+% interval i.e. t>0) and data.SPIKES.base_count (in the pre-stimulus
+% interval i.e. t<0). If these fields don't exist yet they are computed 
 % 
 % Options:
 % -chan [c1 c2 c3 ...] Set channels 
@@ -22,6 +29,8 @@ function response_curve (data, varargin)
 % -per-unit            One panel per unit (default: one per channel)
 % -no-average          Do not attempt averaging over conditions
 % -pass [pass_ids]     Select passes to plot
+% 
+% Dependencies: tools.forChannels
 % 
 % v0.1 - 4 June 2023 - Calvin Eiber <c.eiber@ieee.org>
 
@@ -61,18 +70,19 @@ if any(named('-y')), opts.y_var = get_('-y');
 else
     %% Select spikes to include by applying filters
     opts.y_label = 'spike count (imp)';
-    opts.y_var = {'spike_count','spike_baseline'};
+    opts.y_var = {'spike_count','base_count'};
     opts.y_style = {'o','-(0.3)'};
     
     if ~isfield(data,'spike_count')
       [chan_unit, y_data, y_base] = tools.forChannels(data, @pass_spike_counts, ...
                                                  '--ordered', varargin{:}); 
       data.spike_count = y_data;
-      data.spike_baseline = mean(y_base,2);
+      data.base_count = mean(y_base,2);
       data.index = chan_unit;
     end
-    
 end
+
+if any(named('-sty')), opts.y_style = get_('-sty'); end
 
 tools.forChannels(data, @plot_curve, varargin{:}, ...
                    '--opts', opts, '--subplot')

@@ -10,9 +10,19 @@ data = tools.readPlexon(p_(list(1)));
 % tw = load(strrep(p_(list(1)), '.csv','.mat'));
 
 %%
-
+close all
 s = tools.simplify(data); 
-plots.ISI(s)
+assert(numel(get(0,'children')) == 0)
+
+% as a further example you can do the following:
+special_spike = tools.simplify(s, '-channel',58,'-unit',2); 
+
+%%
+
+close all
+plots.ISI(s(201:220))
+
+assert(numel(get(0,'children')) == 20)
 
 %%
 

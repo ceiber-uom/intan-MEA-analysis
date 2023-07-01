@@ -41,11 +41,12 @@ if any(named('-undo')), spikes = undo_unpacking(data); return, end
 spk_data = @(d,varargin) (d); % extract the data
 
 printInfo(); 
-[~, spikes] = tools.forChannels(data.SPIKE, spk_data, varargin{:},'--ordered'); 
 
-if isfield(data.SPIKE,'pass_begin')
-     n_passes = numel(data.SPIKE.pass_begin);
-     t0 = [0; data.SPIKE.pass_begin];
+[~, spikes] = tools.forChannels(data, spk_data, varargin{:},'--ordered'); 
+
+if isfield(spikes,'pass_begin')
+     n_passes = numel(spikes(1).pass_begin);
+     t0 = [0; spikes(1).pass_begin];
 
      error needs_testing
 

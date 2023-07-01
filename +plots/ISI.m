@@ -41,16 +41,23 @@ end
 
 opts.merge = any(named('-merge')); 
 
+oa = findobj(0,'type','axes'); % axes before plotting
+
 tools.forChannels(data, @isi_plot, varargin{:}, ...
                    '--opts', opts, '--plot', '--set-y')
 
-h = get(gcf,'Children');
-pos = cat(1,h.Position);
-[~,blc] = min(pos*[1;1;0;0]);
+ax = setdiff(findobj(0,'type','axes'), oa);
+% ax = get(gcf,'Children');
 
-if opts.raster, xlabel(h(blc),'time (s)'), ylabel(h(blc),'ISI (s)')
-elseif opts.log, xlabel(h(blc),'log_{10} ISI (s)')
-else xlabel(h(blc),'ISI (s)')
+if numel(unique([ax.Parent])) > 1, 
+     blc = 1:numel(ax); 
+else pos = cat(1,ax.Position);
+  [~,blc] = min(pos*[1;1;0;0]);
+end
+
+if opts.raster, xlabel(ax(blc),'time (s)'), ylabel(ax(blc),'ISI (s)')
+elseif opts.log, xlabel(ax(blc),'log_{10} ISI (s)')
+else xlabel(ax(blc),'ISI (s)')
 end
 
 

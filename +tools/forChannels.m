@@ -136,7 +136,7 @@ if any(named('-unit')), u_roi = get_('-unit');
   if any(u_roi), include = include & u_roi; end
 end
 
-if numel(channel_map) > 1 && opts.do_plots, clf, end
+if numel(channel_map) > 1 && opts.do_plots && opts.one_figure, clf, end
 
 %% Core loop
 
@@ -149,11 +149,10 @@ for pp = 1:numel(channel_map)
     if ~opts.hash, this_channel = this_channel & data.unit > 0; end
 
     if ~any(this_channel) && opts.skip_empty, continue, end
-    if opts.do_plots
-      if ~opts.one_figure, % will make figure inside of unit loop
-      elseif numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
-      else cla reset
-      end, hold on
+    if opts.do_plots && opts.one_figure % set up subplot for this channel
+      if numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), hold on 
+      else cla reset, hold on
+      end
     end
 
     n_units = max(data.unit(this_channel));
@@ -163,10 +162,6 @@ for pp = 1:numel(channel_map)
 
       if opts.merge, ok = this_channel;
       else ok = this_channel & data.unit == u_id;
-      end
-
-      if ~opts.one_figure && opts.do_plots
-        figure('Name',sprintf('channel %d, unit %d', cc, u_id))
       end
         
       if ~any(ok) && opts.skip_empty, continue, end
@@ -190,6 +185,11 @@ for pp = 1:numel(channel_map)
           end
       end
 
+      % Make figure if one figure per cell 
+      if ~opts.one_figure && opts.do_plots
+        figure('Name',sprintf('channel %d, unit %d', cc, u_id))
+      end
+
       out = cell(size(varargout));
 
       % Invoke the function to be applied
@@ -206,10 +206,15 @@ for pp = 1:numel(channel_map)
          else varargout{nn} = [varargout{nn}; out{nn}]; 
         end
       end
+    
+      %% optional figure panel formatting (minimal)
+      if ~opts.do_plots || opts.one_figure, continue, end
+      plots.tidy, title(get(gcf,'Name'))
+
     end
 
     %% Optional subplot formatting
-    if ~opts.do_plots, continue, end
+    if ~opts.do_plots || ~opts.one_figure, continue, end
     
     if opts.dynamic_YLIM
         yl = max(varargout{1}(list(:,1) == cc,1));

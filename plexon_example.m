@@ -4,7 +4,6 @@ clear
 
 list = dir('../Pro*/*.xlsx'); % .csv
 p_ = @(x) [x.folder filesep x.name]; % path expander
-
 data = tools.readPlexon(p_(list(1)));
 
 % tw = load(strrep(p_(list(1)), '.csv','.mat'));

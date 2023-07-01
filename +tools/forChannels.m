@@ -155,6 +155,11 @@ for pp = 1:numel(channel_map)
       end
     end
 
+    if numel(data.unit) == 1
+        data.channel = data.channel(1) * ones(size(data.time));
+        data.unit = data.unit(1) * ones(size(data.time)); 
+    end
+
     n_units = max(data.unit(this_channel));
     if opts.merge, n_units = 0; end
 

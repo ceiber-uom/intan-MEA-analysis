@@ -15,6 +15,15 @@ function results = STA(data, varargin)
 %                    observation channel just after a spike in the trigger 
 %                    channel contribute to STA density at positive times. 
 % 
+% By default, a heatmap plot is generated with channels on the Y axis and
+% lags on the X axis which shows the cross-correlation (STA) between the
+% trigger channel and each other channel in imp/s. The channels are ordered
+% roughly by shape similarity; a tick on the Y axis shows the trigger
+% channel
+% 
+% This heatmap is interactive: click to get a measurement of the STA for a
+% particular time and channel (output to the MATLAB console). 
+% 
 % Options: 
 %  -pdf              : Generate a PDF of this figure for each channel/unit
 %  -trig [chan unit] : set trigger channel/unit 
@@ -196,6 +205,9 @@ named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
 if any(named('-no-plot')), return, end
+
+
+
 
 clf
 smooth = @(x,n) conv2(x,ones(1,n)/n,'same');

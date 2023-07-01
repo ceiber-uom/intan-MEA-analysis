@@ -19,7 +19,7 @@ epochs = set_condition_id(epochs); % for 01_ stimuli
 
 %% 
 
-% plots.raster(epochs); % ,'-per-unit'
+% plots.raster(epochs); % ,'-per-unit' 
 
 clf
 % plots.psth(epochs) % one panel per channel
@@ -45,13 +45,7 @@ plots.psth(data,'-per-unit','-unit',17:22,'-chan',16:21); %  see just these unit
 % multiple channels), so Ch1 might have units 1-4, Ch2 4-6, Ch3 5-12, etc. 
 
 
-%%
+%% Example response curve plot
 
-plots.response_curve(epochs,'-x','duration','-roi',[-2 5],'-per-unit');
+plots.responseCurve(epochs,'-x','duration','-roi',[-2 5],'-per-unit');
 
-%%
-
-plots.psth(data,'-roi', [-0.1 2.5]); %  to see every unit on a seperate axis
-
-
-% todo - implement epochs.block_id for averaging 

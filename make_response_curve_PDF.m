@@ -13,7 +13,7 @@ for cell_id = 1:n_cells % for each cell_id
     p = get(gca,'position'); % default single axes
 
     % this is the code which actually generates the plot
-    plots.response_curve(epochs,'-per-unit','-chan',cell_id, '-x', ...
+    plots.responseCurve(epochs,'-per-unit','-chan',cell_id, '-x', ...
                         'average','-roi',[-0.05 0.2]); %  see just this unit
     
     % modify the axis position and x/y limits

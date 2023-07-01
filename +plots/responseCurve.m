@@ -1,6 +1,6 @@
 
-function response_curve (data, varargin)
-% function plots.response_curve( data, ... )
+function responseCurve (data, varargin)
+% function plots.responseCurve( data, ... )
 %
 % Response curve analysis of recorded spikes. For simple stimuli this code 
 % works almost automatically to figure out what way of plotting makes the
@@ -38,7 +38,7 @@ named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
 if isfield(data,'config')
-   this = @(d) plots.response_curve(d, varargin{:},'--epochs',data.epochs);
+   this = @(d) plots.responseCurve(d, varargin{:},'--epochs',data.epochs);
    tools.forWaveType(data, this, varargin{:});
    return
 end

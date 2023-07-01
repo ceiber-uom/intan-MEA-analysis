@@ -109,6 +109,10 @@ printInfo();
 [~, results] = tools.forChannels(data, @run_sta, T, varargin{:}); 
 disp('Done! ')
 
+seq = cat(1,results.channel_unit);
+[~,seq] = sort(seq(:,1) + (seq(:,2)/max(seq(:,2)+1)));
+results = results(seq);
+
 make_summary_graphic(results, varargin{:})
 
 return
@@ -205,9 +209,6 @@ named = @(s) strncmpi(s,varargin,numel(s));
 get_ = @(v) varargin{find(named(v))+1};
 
 if any(named('-no-plot')), return, end
-
-
-
 
 clf
 smooth = @(x,n) conv2(x,ones(1,n)/n,'same');

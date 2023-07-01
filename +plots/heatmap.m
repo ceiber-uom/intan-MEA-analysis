@@ -96,7 +96,24 @@ else
     end
 end
 
+%% Procedures for sparse data, shrunk
 if numel(y_data) ~= nC
+
+  if isfield(data,'unit')
+    chan_unit = unique([data.channel data.unit],'rows'); 
+    nU = size(chan_unit,1);
+  else nU = -1;
+  end
+  
+  if numel(y_data) == nU
+      y_data = arrayfun(@(c) mean(y_data(chan_unit(:,1) == c)), 1:nC)';
+  end
+
+
+  if numel(y_data) == numel(unique(channel_map))
+    error implement_procedure_for_this_case
+  end
+  
   error implement_procedure_for_sparse_data
 end
 

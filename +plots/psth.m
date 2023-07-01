@@ -83,14 +83,21 @@ elseif numel(opts.bins) == 3,
     opts.bins = sort(opts.bins*bin_w,'ascend');
 end
 
+oa = findobj(0,'type','axes'); % axes before plotting
+
 tools.forChannels(data, @psth_plot, varargin{:}, ...
                    '--opts', opts, '--subplot')
 
-ax = get(gcf,'Children');
-pos = cat(1,ax.Position);
-[~,blc] = min(pos*[1;1;0;0]);
+ax = setdiff(find(0,'type','axes'), oa);
+% ax = get(gcf,'Children');
 
-xlabel(ax(blc),'time (s)'), 
+if numel(unique([ax.Parent])) > 1, 
+     blc = 1:numel(ax); 
+else pos = cat(1,ax.Position);
+  [~,blc] = min(pos*[1;1;0;0]);
+end
+
+xlabel(ax(blc),'time (s)'),         % TODO - test for not -single-fig
 ylabel(ax(blc),'response (imp/s)')
 
 if opts.trial_avg, 
@@ -98,7 +105,7 @@ if opts.trial_avg,
 else nY = numel(epochs.start);
 end
 
-arrayfun(@(a)fix_vertical_offset(a,nY,opts),ax);
+arrayfun(@(a) fix_vertical_offset(a,nY,opts),ax);
 
 if isfield(epochs,'block_id'), 
     error TODO_implement_block_logic

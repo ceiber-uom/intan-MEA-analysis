@@ -33,7 +33,7 @@ function [list, varargout] = forChannels (data, fun, varargin)
 % -enable-empty-call   If set, FUNCTION is called even if there is no data
 % 
 % Exposed options for SUBPLOT mode:
-% -single-figure       Old default option, create one figure with subplots
+% -single-figure, -1f  Old default option, create one figure with subplots
 %                      instead of one figure per cell (new default)
 % -ticks               Toggle Ticks display for subplots
 % -no-tidy             Supress plots.tidy and basic subplot format
@@ -70,7 +70,7 @@ opts.skip_empty   = ~any(named('-enable-empty'));
 % Control over single/multi figure and figure labels
 opts.do_subplot   = any(named('--subplot')); 
 opts.ticks        =(numel(channel_map) > 6) == any(named('-tick'));
-opts.one_figure   = any(named('-single-f')); 
+opts.one_figure   = any(named('-single-f')) || any(named('-1f'));
 opts.label_all    = any(named('-label'));
 opts.label_none   = any(named('-no-l'));
 opts.dynamic_YLIM = any(named('--set-y'));

@@ -13,6 +13,8 @@ data = tools.readPlexon(p_(list(1)));
 
 s = tools.simplify(data); 
 
+plots.ISI(s)
+
 %%
 
 msa = analysis.states(data, '-roi', [0 500], ...

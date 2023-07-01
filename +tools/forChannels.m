@@ -33,6 +33,8 @@ function [list, varargout] = forChannels (data, fun, varargin)
 % -enable-empty-call   If set, FUNCTION is called even if there is no data
 % 
 % Exposed options for SUBPLOT mode:
+% -single-figure       Old default option, create one figure with subplots
+%                      instead of one figure per cell (new default)
 % -ticks               Toggle Ticks display for subplots
 % -no-tidy             Supress plots.tidy and basic subplot format
 % -labels              Label each subplot (default: corners only)
@@ -52,6 +54,8 @@ if isfield(data,'config')
    end
    if nargout > 0, list = list.(types{1}); end %#ok<USENS> 
    return
+elseif numel(data) > 1
+    data = tools.simplify(data,'-undo');
 end
 
 channel_map = plots.layout(data, varargin{:});
@@ -67,6 +71,14 @@ opts.label_none   =  any(named('-no-l'));
 opts.skip_empty   = ~any(named('-enable-empty'));
 opts.do_subplot   =  any(named('--subplot')); 
 opts.dynamic_YLIM =  any(named('--set-y'));
+
+opts.one_figure   = any(named('-single-f')); 
+
+if opts.one_figure, 
+    opts.ticks = true; 
+    opts.label_none = true; 
+end
+
 
 opts.label_color = [.4 .4 .4];
 if any(named('--label-c')), opts.label_color = get_('--label-c'); end

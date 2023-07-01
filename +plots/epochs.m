@@ -16,6 +16,7 @@ function epochs (data, varargin)
 % -dy [y]              Set vertical offset (as multiple of wave delta-z) 
 % -ticks               Toggle default ticks behaviour (ticks enabled for
 %                       6 or fewer channels, disabled otherwise)
+% -single-figure       Plot all on one figure (old default)
 % -pass [pass_ids]     Select passes to plot (for expoched data), 
 % if any(named('-wave')) || ~isfield(...)
 % end
@@ -42,6 +43,8 @@ end
 subplot_nxy = num2cell(size(channel_map));
 
 opts.ticks = (numel(channel_map) > 6) == any(named('-ti'));
+opts.one_figure = any(named('-single-f'));
+
 %%
 if numel(channel_map) > 1, clf, end
 
@@ -67,11 +70,12 @@ C = lines(7);
 
 for pp = 1:numel(channel_map)
 
-    if channel_map(pp) == 0, continue, end
-    if numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
+    cc = channel_map(pp);
+    if cc == 0, continue, end
+    if opts.one_figure, figure('Name',sprintf('channel %d', cc)), cla
+    elseif numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
     else cla reset
     end
-    cc = channel_map(pp); 
 
     y = permute(data.wave(t_roi,cc,passes), [1 3 2]);
     y = y(1:dsf:end,:) + dy*(0:size(y,2)-1);

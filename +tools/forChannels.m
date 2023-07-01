@@ -43,42 +43,42 @@ function [list, varargout] = forChannels (data, fun, varargin)
 % 
 % v0.1 - 23 December 2022 - Calvin Eiber <c.eiber@ieee.org>
 
-named = @(s) strncmpi(s,varargin,numel(s));
+named = @(s) strncmpi(s,varargin,numel(s)); % varargin parser
 get_ = @(v) varargin{find(named(v))+1};
 
-if isfield(data,'config')
+if isfield(data,'config') % is this a top-level INTAN object? if so call forWaveType. 
    varargout = cell(1,nargout-1);
-   this = @(d) tools.forChannels(d, fun, varargin{:});
+   this = @(d) tools.forChannels(d, fun, varargin{:}); % this function
    if nargout == 0, tools.forWaveType(data, this, varargin{:},'--get-types');
    else [list,varargout{:}] = tools.forWaveType(data, this, varargin{:},'--get-types');
    end
    if nargout > 0, list = list.(types{1}); end %#ok<USENS> 
    return
-elseif numel(data) > 1
+elseif numel(data) > 1 || any(named('--undo')) % e.g. the output from tools.simplify()
+  % The --undo flag is added to force this behaviour in the case of plotting just one cell  
     data = tools.simplify(data,'-undo');
 end
 
 channel_map = plots.layout(data, varargin{:});
 subplot_nxy = fliplr(num2cell(size(channel_map)));
 
-opts.ticks = (numel(channel_map) > 6) == any(named('-tick'));
+% control over how the data is split up and what gets passed through
 opts.hash  = ~any(named('-no-hash'));
 opts.merge = any(named('-ignore-u')) || any(named('-merge'));
-
-% Add channel labels
-opts.label_all    =  any(named('-label'));
-opts.label_none   =  any(named('-no-l'));
 opts.skip_empty   = ~any(named('-enable-empty'));
-opts.do_subplot   =  any(named('--subplot')); 
-opts.dynamic_YLIM =  any(named('--set-y'));
 
+% Control over single/multi figure and figure labels
+opts.do_subplot   = any(named('--subplot')); 
+opts.ticks        =(numel(channel_map) > 6) == any(named('-tick'));
 opts.one_figure   = any(named('-single-f')); 
+opts.label_all    = any(named('-label'));
+opts.label_none   = any(named('-no-l'));
+opts.dynamic_YLIM = any(named('--set-y'));
 
 if opts.one_figure, 
     opts.ticks = true; 
-    opts.label_none = true; 
+    opts.label_none = ~opts.label_all; 
 end
-
 
 opts.label_color = [.4 .4 .4];
 if any(named('--label-c')), opts.label_color = get_('--label-c'); end
@@ -88,8 +88,8 @@ else function_opts = [];
 end
 
 list = []; 
-varargout = cell(1,nargout-1);
-if opts.dynamic_YLIM, varargout = {[]}; end
+varargout = cell(1,nargout-1); % because arg_out[1] is list
+if opts.dynamic_YLIM, varargout = {[]}; end 
 
 %% Implement syntax to control which spikes get let through
 
@@ -150,7 +150,8 @@ for pp = 1:numel(channel_map)
 
     if ~any(this_channel) && opts.skip_empty, continue, end
     if opts.do_subplot
-      if numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
+      if ~opts.one_figure, % will make figure inside of unit loop
+      elseif numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
       else cla reset
       end, hold on
     end
@@ -163,12 +164,16 @@ for pp = 1:numel(channel_map)
       if opts.merge, ok = this_channel;
       else ok = this_channel & data.unit == u_id;
       end
+
+      if ~opts.one_figure,
+        figure('Name',sprintf('channel %d, unit %d', cc, u_id))
+      end
         
       if ~any(ok) && opts.skip_empty, continue, end
       this = data; 
 
       % Select spikes to include
-      for f = fieldnames(data)'
+      for f = fieldnames(data)'  %' filter variables to this spike
         if numel(ok) ~= size(this.(f{1})), continue, end
         this.(f{1}) = this.(f{1})(ok,:,:,:,:,:,:,:);
       end
@@ -179,7 +184,7 @@ for pp = 1:numel(channel_map)
           idx = all(this.index == [cc u_id],2);
     
           % Select pass variables to include
-          for f = fieldnames(data)'
+          for f = fieldnames(data)' %' filter to this pass
             if numel(idx) ~= size(this.(f{1})), continue, end
             this.(f{1}) = this.(f{1})(idx,:,:,:,:,:,:,:);
           end
@@ -230,7 +235,7 @@ for pp = 1:numel(channel_map)
     end
 end
 
-if opts.do_subplot
+if opts.do_subplot && opts.one_figure
   %% Final subplot formatting  
   h = get(gcf,'Children');
   if any(named('--link')), linkaxes(h,get_('--link')); end

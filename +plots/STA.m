@@ -73,7 +73,7 @@ if any(named('-merge')) && ~any(named('-merge-sta')),
     tfc_opt = [{'-merge'} tfc_opt]; 
 end
 
-if numel(chan_unit) <= 1 % auto detect
+if numel(chan_unit) <= 1 && ~isstruct(chan_unit) % auto detect
     if ~isempty(chan_unit), tfc_opt = [tfc_opt {'-chan'} chan_unit]; end
     [chan_unit, spike_count] = tools.forChannels(data, ...
                                    @(d,varargin) length(d.time), ...
@@ -87,10 +87,13 @@ if numel(chan_unit) <= 1 % auto detect
 end
 
 if isstruct(chan_unit), T = chan_unit;
+  if ~isfield(T,'channel_unit'), 
+    T.channel_unit = [T.channel(1) T.unit(1)]; 
+  end
 else
-    [~,T] = tools.forChannels(data, @(d,varargin) d, tfc_opt{1}, ...
+  [~,T] = tools.forChannels(data, @(d,varargin) d, tfc_opt{1}, ...
                             '-chan',chan_unit(1),'-unit',chan_unit(2));
-    T.channel_unit = chan_unit; 
+  T.channel_unit = chan_unit; 
 end
 
 printInfo(); 
@@ -243,9 +246,10 @@ else
 
   nnz = mean(img~=0,2);
   nnz_threshold = 0.25; 
+  ok = (nnz>=nnz_threshold) | [results.is_trigger]';
 
-  img = img(nnz>=nnz_threshold,:);
-  seq = seq(nnz>=nnz_threshold);
+  img = img(ok,:);
+  seq = seq(ok);
 
     % img = smooth(img,5);
 
@@ -268,13 +272,16 @@ else
 end
 
 axis xy tight, plots.tidy
-xlabel(['time, ' time_unit]), set(gca,'YTick',[]), ylabel('channels')
+xlabel(['time, ' time_unit]), 
+set(gca,'YTick',[]), 
+ylabel('channels')
 
 sel = [results.is_trigger];
 
 if any(sel), 
      tcu = results(sel).channel_unit;
      title(sprintf('STA with trigger = c%d.u%d', tcu)) 
+     set(gca,'YTick',find(sel(seq)),'YTickLabel','')
 else title('STA')
 end
 
@@ -306,7 +313,10 @@ varargin(named('-pdf')) = []; % prevent recursion
 plots.PDF_tools('setup'); 
 
 for ii = 1:numel(T)
-    analysis.sta(data, '-trigger', T(ii), varargin{:})
+    plots.STA(data, '-trigger', T(ii), varargin{:});
+    text(xlim*[.2;.8],ylim*[-0.02;1.02], ...
+         sprintf('%d trigger spikes',numel(T(ii).time)),...
+         'FontSize',7,'Color',[.4 .4 .4])
     plots.PDF_tools(gcf, 'page-%04d.ps', ii)
 end
 

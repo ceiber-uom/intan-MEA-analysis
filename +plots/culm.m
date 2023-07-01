@@ -4,6 +4,8 @@ function culm (data, varargin)
 %
 % Cumulative density of recorded spike counts (or other channel data)
 % 
+% it looks like some options aren't well documented ..?
+% 
 % Options:
 % -y [y1 y2 ... ]      Set data to visualuse 
 % -chan [c1 c2 c3 ...] Set channels

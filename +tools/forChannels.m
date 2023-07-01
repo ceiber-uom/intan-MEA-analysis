@@ -29,7 +29,7 @@ function [list, varargout] = forChannels (data, fun, varargin)
 % -no-hash             Only show spikes with unit code > 0. 
 % 
 % The following meta-directives are supported:
-% --subplot            Generate a subplot for each call of FUNCTION. 
+% --plot            Generate a plot or panel for each call of FUNCTION. 
 % -enable-empty-call   If set, FUNCTION is called even if there is no data
 % 
 % Exposed options for SUBPLOT mode:
@@ -68,7 +68,7 @@ opts.merge = any(named('-ignore-u')) || any(named('-merge'));
 opts.skip_empty   = ~any(named('-enable-empty'));
 
 % Control over single/multi figure and figure labels
-opts.do_subplot   = any(named('--subplot')); 
+opts.do_plots   = any(named('--plot')); 
 opts.ticks        =(numel(channel_map) > 6) == any(named('-tick'));
 opts.one_figure   = any(named('-single-f')) || any(named('-1f'));
 opts.label_all    = any(named('-label'));
@@ -136,7 +136,7 @@ if any(named('-unit')), u_roi = get_('-unit');
   if any(u_roi), include = include & u_roi; end
 end
 
-if numel(channel_map) > 1 && opts.do_subplot, clf, end
+if numel(channel_map) > 1 && opts.do_plots, clf, end
 
 %% Core loop
 
@@ -149,7 +149,7 @@ for pp = 1:numel(channel_map)
     if ~opts.hash, this_channel = this_channel & data.unit > 0; end
 
     if ~any(this_channel) && opts.skip_empty, continue, end
-    if opts.do_subplot
+    if opts.do_plots
       if ~opts.one_figure, % will make figure inside of unit loop
       elseif numel(channel_map) > 1, subplot(subplot_nxy{:}, pp), 
       else cla reset
@@ -165,7 +165,7 @@ for pp = 1:numel(channel_map)
       else ok = this_channel & data.unit == u_id;
       end
 
-      if ~opts.one_figure,
+      if ~opts.one_figure && opts.do_plots
         figure('Name',sprintf('channel %d, unit %d', cc, u_id))
       end
         
@@ -209,7 +209,7 @@ for pp = 1:numel(channel_map)
     end
 
     %% Optional subplot formatting
-    if ~opts.do_subplot, continue, end
+    if ~opts.do_plots, continue, end
     
     if opts.dynamic_YLIM
         yl = max(varargout{1}(list(:,1) == cc,1));
@@ -235,7 +235,7 @@ for pp = 1:numel(channel_map)
     end
 end
 
-if opts.do_subplot && opts.one_figure
+if opts.do_plots && opts.one_figure
   %% Final subplot formatting  
   h = get(gcf,'Children');
   if any(named('--link')), linkaxes(h,get_('--link')); end

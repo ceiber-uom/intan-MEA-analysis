@@ -27,6 +27,9 @@ if isfield(data,'config')
    this = @(d) plots.heatmap(d, varargin{:});
    tools.forWaveType(data, this, varargin{:});
    return
+elseif numel(data) > 1 || any(named('--undo')) % e.g. the output from tools.simplify()
+  % The --undo flag is added to force this behaviour in the case of plotting just one cell  
+    data = tools.simplify(data,'-undo');
 end
 
 channel_map = plots.layout(data, varargin{:});

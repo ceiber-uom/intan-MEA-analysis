@@ -86,7 +86,7 @@ end
 oa = findobj(0,'type','axes'); % axes before plotting
 
 tools.forChannels(data, @psth_plot, varargin{:}, ...
-                   '--opts', opts, '--subplot')
+                   '--opts', opts, '--plot')
 
 ax = setdiff(find(0,'type','axes'), oa);
 % ax = get(gcf,'Children');

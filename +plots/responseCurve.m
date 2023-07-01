@@ -85,7 +85,7 @@ end
 if any(named('-sty')), opts.y_style = get_('-sty'); end
 
 tools.forChannels(data, @plot_curve, varargin{:}, ...
-                   '--opts', opts, '--subplot')
+                   '--opts', opts, '--plot')
 
 h = get(gcf,'Children');
 pos = cat(1,h.Position);

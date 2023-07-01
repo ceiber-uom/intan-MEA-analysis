@@ -42,7 +42,7 @@ end
 opts.merge = any(named('-merge')); 
 
 tools.forChannels(data, @isi_plot, varargin{:}, ...
-                   '--opts', opts, '--subplot', '--set-y')
+                   '--opts', opts, '--plot', '--set-y')
 
 h = get(gcf,'Children');
 pos = cat(1,h.Position);

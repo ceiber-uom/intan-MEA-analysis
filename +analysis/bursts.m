@@ -34,7 +34,8 @@ function results = bursts(data, varargin)
 %  -lim [0.02 0.1]   : Set the upper bound of burst ISI center (s), 
 %                              lower bound of non-burst ISIs (s)
 %                      (defaults may adjust from these values if needed)
-%  -replot           : 
+%  -replot           : Make plot from previously analysed result (default
+%                       if result is the first input argument) 
 % 
 %  -min-dur [2 s]    : set minimum duration of a state occurance (in sec)
 %  -smooth [4 s]     : set spikerate smoothing window width in sec
@@ -58,7 +59,7 @@ function results = bursts(data, varargin)
 named = @(s) strncmpi(s,varargin,numel(s));
 
 if nargin == 0, try data = evalin('caller','data'); end %#ok<TRYNC> 
-elseif isfield(data,'isi_threshold')
+elseif isfield(data,'isi_threshold') || any(named('-replot'))
     clf, make_singleChannel_plot(data(1)), return
 end
 

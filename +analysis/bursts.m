@@ -230,7 +230,7 @@ semilogy(data.time, stats.spike.isi,'.','Color',[.7 .7 .7]), hold on
 plot(data.time([1 end]), [1 1]*bt,'-',style{:})
 text(max(xlim),bt,sprintf('%0.5f',bt),font{:},C(2,:))
 
-plots.tidy, yl = ylim;
+plots.tidy, yl = ylim; xl = xlim;
 xlabel('time (s)'), ylabel('Burst ISI (s)')
 
 % Recompute this
@@ -260,7 +260,7 @@ end
 subplot(2,3,[4 5])
 plot(data.time, spike_nib, '.', 'Color', [.7 .7 .7])
 axis tight, plots.tidy, xlabel('time (s)'), ylabel('Burst n\_pikes')
-bl = ylim; 
+bl = ylim; xlim(xl)
 
 
 B = stats.bursts; 

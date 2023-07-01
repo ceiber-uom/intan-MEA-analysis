@@ -11,6 +11,10 @@ data = tools.readPlexon(p_(list(1)));
 
 %%
 
+s = tools.simplify(data); 
+
+%%
+
 msa = analysis.states(data, '-roi', [0 500], ...
                             '-chan', 33:64,  ... 
                             '-bin', 0.5);
